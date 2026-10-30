@@ -1,0 +1,47 @@
+services:
+  postgres-users:
+    image: postgres:16-alpine
+    container_name: gerenciar-financas-postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+    ports:
+      - "5434:5432"
+
+    volumes:
+      - postgres-users-data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  financas:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: gerenciar-financas-api
+    restart: on-failure
+
+    environment:
+      SERVER_PORT: 8080
+      DB_URL: jdbc:postgresql://postgres-users:5432/${POSTGRES_DB}
+      DB_USERNAME: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DDL_AUTO: update
+
+    ports:
+      - "8082:8080"
+
+    depends_on:
+      postgres-users:
+        condition: service_healthy
+
+volumes:
+  postgres-users-data:

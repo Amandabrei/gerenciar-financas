@@ -2,11 +2,20 @@ server:
   port: ${SERVER_PORT:8080}
 
 spring:
+  application:
+    name: gerenciar-financas
+
   datasource:
     url: ${DB_URL}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
 
   jpa:
+    open-in-view: false
     hibernate:
       ddl-auto: ${DDL_AUTO:update}
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true

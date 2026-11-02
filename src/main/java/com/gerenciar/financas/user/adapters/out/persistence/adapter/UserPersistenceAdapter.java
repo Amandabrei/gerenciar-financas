@@ -1,4 +1,4 @@
-package com.gerenciar.financas.user.adapters.out.persistence.adapters;
+package com.gerenciar.financas.user.adapters.out.persistence.adapter;
 
 import com.gerenciar.financas.user.adapters.out.persistence.entity.UserEntity;
 import com.gerenciar.financas.user.adapters.out.persistence.repository.UserJpaRepository;

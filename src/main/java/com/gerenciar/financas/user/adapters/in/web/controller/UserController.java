@@ -9,6 +9,8 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import java.io.IOException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
@@ -25,19 +27,23 @@ public class UserController {
     private final FindUserByIdUseCase findUserByIdUseCase;
     private final UpdateUserUseCase updateUserUseCase;
     private final DeleteUserUseCase deleteUserUseCase;
+    private final ImportUsersCsvUseCase importUsersCsvUseCase;
 
     public UserController(
             CreateUserUseCase createUserUseCase,
             FindAllUsersUseCase findAllUsersUseCase,
             FindUserByIdUseCase findUserByIdUseCase,
             UpdateUserUseCase updateUserUseCase,
-            DeleteUserUseCase deleteUserUseCase) {
+            DeleteUserUseCase deleteUserUseCase,
+            ImportUsersCsvUseCase importUsersCsvUseCase
+            ){
 
         this.createUserUseCase = createUserUseCase;
         this.findAllUsersUseCase = findAllUsersUseCase;
         this.findUserByIdUseCase = findUserByIdUseCase;
         this.updateUserUseCase = updateUserUseCase;
         this.deleteUserUseCase = deleteUserUseCase;
+        this.importUsersCsvUseCase = importUsersCsvUseCase;
     }
 
     @Operation(summary = "Listar usuários")
@@ -101,5 +107,17 @@ public class UserController {
         deleteUserUseCase.deleteUser(id);
 
         return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "Importar usuários por arquivo CSV")
+    @PostMapping(value = "/import", consumes = "multipart/form-data")
+    public ResponseEntity<ImportUsersCsvResult> importUsers(
+            @RequestParam("file") MultipartFile file) throws IOException {
+
+        ImportUsersCsvResult result = importUsersCsvUseCase.execute(
+                file.getBytes()
+        );
+
+        return ResponseEntity.ok(result);
     }
 }

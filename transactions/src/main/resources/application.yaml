@@ -23,3 +23,7 @@ spring:
 services:
   user:
     base-url: ${USER_SERVICE_URL:http://localhost:8082}
+  account:
+    base-url: ${ACCOUNT_API_URL:https://6aeb6914ee39618d7bf84ac4.mockapi.io/accounts}
+  exchange:
+    base-url: ${EXCHANGE_API_URL:https://brasilapi.com.br/cambio/v1}

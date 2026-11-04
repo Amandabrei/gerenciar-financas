@@ -11,11 +11,17 @@ import com.gerenciar.financas.transactions.domain.enums.TransactionType;
 import com.gerenciar.financas.transactions.domain.exception.InvalidTransactionException;
 import com.gerenciar.financas.transactions.domain.model.Transaction;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 public class CreateTransactionService implements CreateTransactionUseCase {
+
+    private static final Logger log =
+            LoggerFactory.getLogger(CreateTransactionService.class);
 
     private final TransactionRepositoryPort transactionRepositoryPort;
     private final UserValidationPort userValidationPort;
@@ -172,6 +178,12 @@ public class CreateTransactionService implements CreateTransactionUseCase {
         try {
             financialInfo = accountFinancialPort.getAccountFinancialInfo(ownerId);
         } catch (RuntimeException exception) {
+            log.error(
+                    "Falha ao consultar saldo e limites para o usuário {}",
+                    ownerId,
+                    exception
+            );
+
             return "Não foi possível consultar saldo e limites. Operação não aprovada.";
         }
 

@@ -8,11 +8,11 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 
 @Service
-public class FindAllUsersService implements FindAllUsersUseCase {
+public class FindAllUserService implements FindAllUsersUseCase {
 
     private final UserRepositoryPort userRepositoryPort;
 
-    public FindAllUsersService(UserRepositoryPort userRepositoryPort) {
+    public FindAllUserService(UserRepositoryPort userRepositoryPort) {
         this.userRepositoryPort = userRepositoryPort;
     }
 

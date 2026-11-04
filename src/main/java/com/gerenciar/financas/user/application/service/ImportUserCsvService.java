@@ -16,15 +16,18 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
 @Service
-public class ImportUsersCsvService implements ImportUsersCsvUseCase {
+public class ImportUserCsvService implements ImportUsersCsvUseCase {
 
     private final UserRepositoryPort userRepositoryPort;
     private final PasswordEncoder passwordEncoder;
 
-    public ImportUsersCsvService(
+    public ImportUserCsvService(
             UserRepositoryPort userRepositoryPort,
             PasswordEncoder passwordEncoder) {
         this.userRepositoryPort = userRepositoryPort;
@@ -36,6 +39,7 @@ public class ImportUsersCsvService implements ImportUsersCsvUseCase {
 
         List<ImportUsersCsvFailure> failures = new ArrayList<>();
         int successCount = 0;
+        Set<String> importedEmails = new HashSet<>();
 
         CSVFormat format = CSVFormat.DEFAULT.builder()
                 .setHeader()
@@ -60,7 +64,7 @@ public class ImportUsersCsvService implements ImportUsersCsvUseCase {
 
                 try {
                     String name = record.get("name");
-                    String email = record.get("email");
+                    String email = record.get("email").trim().toLowerCase(Locale.ROOT);
                     String password = record.get("password");
 
                     if (name.isBlank() || name.length() > 120) {
@@ -83,10 +87,13 @@ public class ImportUsersCsvService implements ImportUsersCsvUseCase {
                         );
                     }
 
-                    if (userRepositoryPort.findByEmail(email).isPresent()) {
+                    if (!importedEmails.add(email)) {
                         throw new IllegalArgumentException(
-                                "E-mail já cadastrado"
-                        );
+                                "E-mail repetido no arquivo CSV");
+                    }
+
+                    if (userRepositoryPort.findByEmail(email).isPresent()) {
+                        throw new IllegalArgumentException("E-mail já cadastrado");
                     }
 
                     User user = new User(

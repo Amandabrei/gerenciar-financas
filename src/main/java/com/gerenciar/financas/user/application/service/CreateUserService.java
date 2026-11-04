@@ -4,10 +4,10 @@ import com.gerenciar.financas.user.application.port.in.CreateUserUseCase;
 import com.gerenciar.financas.user.application.port.out.UserRepositoryPort;
 import com.gerenciar.financas.user.domain.exception.EmailAlreadyExistsException;
 import com.gerenciar.financas.user.domain.model.User;
-import org.springframework.stereotype.Service;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
 
-import java.util.UUID;
+import java.util.Locale;
 
 @Service
 public class CreateUserService implements CreateUserUseCase {
@@ -25,6 +25,8 @@ public class CreateUserService implements CreateUserUseCase {
 
     @Override
     public User createUser(String name, String email, String password) {
+
+        email = email.trim().toLowerCase(Locale.ROOT);
 
         userRepositoryPort.findByEmail(email)
                 .ifPresent(user -> {

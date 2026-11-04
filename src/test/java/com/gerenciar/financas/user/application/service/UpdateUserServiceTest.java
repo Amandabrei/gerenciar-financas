@@ -107,4 +107,43 @@ class UpdateUserServiceTest {
 
         verify(userRepositoryPort, never()).save(any(User.class));
     }
+
+    @Test
+    void deveNormalizarEmailAntesDeConsultarESalvar() {
+        UUID id = UUID.randomUUID();
+        User existingUser = new User(id, "Ana", "ana@email.com", "senha-criptografada");
+
+        when(userRepositoryPort.findById(id)).thenReturn(Optional.of(existingUser));
+        when(userRepositoryPort.findByEmail("ana@email.com")).thenReturn(Optional.empty());
+        when(userRepositoryPort.save(any(User.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        User updatedUser = updateUserService.updateUser(
+                id, "Ana", " Ana@Email.com ", null
+        );
+
+        assertEquals("ana@email.com", updatedUser.getEmail());
+        verify(userRepositoryPort).findByEmail("ana@email.com");
+        verify(userRepositoryPort).save(any(User.class));
+    }
+
+    @Test
+    void deveManterSenhaAtualQuandoNovaSenhaNaoForInformada() {
+        UUID id = UUID.randomUUID();
+        String senhaAtual = "senha-criptografada";
+        User existingUser = new User(id, "Ana", "ana@email.com", senhaAtual);
+
+        when(userRepositoryPort.findById(id)).thenReturn(Optional.of(existingUser));
+        when(userRepositoryPort.findByEmail("ana@email.com")).thenReturn(Optional.empty());
+        when(userRepositoryPort.save(any(User.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        User updatedUser = updateUserService.updateUser(
+                id, "Ana", "ana@email.com", null
+        );
+
+        assertEquals(senhaAtual, updatedUser.getPassword());
+        verify(passwordEncoder, never()).encode(anyString());
+        verify(userRepositoryPort).save(any(User.class));
+    }
 }

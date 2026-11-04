@@ -1,4 +1,4 @@
-package com.gerenciar.financas.user.adapters.in.web.exception;
+package com.gerenciar.financas.user.infrastructure.exception;
 
 import com.gerenciar.financas.user.domain.exception.EmailAlreadyExistsException;
 import com.gerenciar.financas.user.domain.exception.UserNotFoundException;
@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -56,6 +57,18 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
+                .body(error);
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, String>> handleDataIntegrityViolation(
+            DataIntegrityViolationException exception) {
+
+        Map<String, String> error = new HashMap<>();
+        error.put("message", "Conflito de dados: registro já existe ou viola uma restrição.");
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
                 .body(error);
     }
 }

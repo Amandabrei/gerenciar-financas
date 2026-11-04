@@ -3,7 +3,7 @@ server:
 
 spring:
   application:
-    name: gerenciar-financas
+    name: user
 
   datasource:
     url: ${DB_URL}

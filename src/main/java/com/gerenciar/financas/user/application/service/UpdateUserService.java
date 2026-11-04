@@ -5,9 +5,9 @@ import com.gerenciar.financas.user.application.port.out.UserRepositoryPort;
 import com.gerenciar.financas.user.domain.exception.EmailAlreadyExistsException;
 import com.gerenciar.financas.user.domain.exception.UserNotFoundException;
 import com.gerenciar.financas.user.domain.model.User;
-import org.springframework.stereotype.Service;
 import org.springframework.security.crypto.password.PasswordEncoder;
-
+import org.springframework.stereotype.Service;
+import java.util.Locale;
 import java.util.UUID;
 
 @Service
@@ -27,10 +27,12 @@ public class UpdateUserService implements UpdateUserUseCase {
     @Override
     public User updateUser(UUID id, String name, String email, String password) {
 
-        userRepositoryPort.findById(id)
+        User existingUser = userRepositoryPort.findById(id)
                 .orElseThrow(() -> new UserNotFoundException(
                         "Usuário não encontrado: " + id
                 ));
+
+        email = email.trim().toLowerCase(Locale.ROOT);
 
         userRepositoryPort.findByEmail(email)
                 .filter(user -> !user.getId().equals(id))
@@ -40,7 +42,9 @@ public class UpdateUserService implements UpdateUserUseCase {
                     );
                 });
 
-        String encodedPassword = passwordEncoder.encode(password);
+        String encodedPassword = password == null || password.isBlank()
+                ? existingUser.getPassword()
+                : passwordEncoder.encode(password);
 
         User updatedUser = new User(
                 id,

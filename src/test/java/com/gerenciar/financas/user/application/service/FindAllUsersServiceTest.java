@@ -20,7 +20,7 @@ class FindAllUsersServiceTest {
     private UserRepositoryPort userRepositoryPort;
 
     @InjectMocks
-    private FindAllUsersService findAllUsersService;
+    private FindAllUserService findAllUsersService;
 
     @Test
     void deveRetornarTodosOsUsuarios() {

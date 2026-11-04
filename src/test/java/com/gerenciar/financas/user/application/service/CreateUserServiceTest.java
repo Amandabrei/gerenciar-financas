@@ -79,4 +79,28 @@ class CreateUserServiceTest {
         verify(userRepositoryPort, never()).save(any(User.class));
         verify(passwordEncoder, never()).encode(anyString());
     }
+
+    @Test
+    void deveNormalizarEmailAntesDeConsultarESalvar() {
+
+        when(userRepositoryPort.findByEmail("ana@email.com"))
+                .thenReturn(Optional.empty());
+
+        when(passwordEncoder.encode("Senha123456"))
+                .thenReturn("senha-criptografada");
+
+        when(userRepositoryPort.save(any(User.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        User user = createUserService.createUser(
+                "Ana",
+                " Ana@Email.com ",
+                "Senha123456"
+        );
+
+        assertEquals("ana@email.com", user.getEmail());
+
+        verify(userRepositoryPort).findByEmail("ana@email.com");
+        verify(userRepositoryPort).save(any(User.class));
+    }
 }

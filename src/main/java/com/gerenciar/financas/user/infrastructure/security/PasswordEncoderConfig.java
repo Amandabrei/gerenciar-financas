@@ -1,4 +1,4 @@
-package com.gerenciar.financas.user.adapters.out.security;
+package com.gerenciar.financas.user.infrastructure.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

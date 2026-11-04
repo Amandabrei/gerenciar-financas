@@ -1,47 +1,83 @@
+
 services:
   postgres-users:
     image: postgres:16-alpine
     container_name: gerenciar-financas-postgres-users
     restart: unless-stopped
-
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-
+      POSTGRES_DB: ${USERS_POSTGRES_DB}
+      POSTGRES_USER: ${USERS_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${USERS_POSTGRES_PASSWORD}
     ports:
       - "5434:5432"
-
     volumes:
       - postgres-users-data:/var/lib/postgresql/data
-
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U ${USERS_POSTGRES_USER} -d ${USERS_POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  financas:
-    build:
-      context: .
-      dockerfile: Dockerfile
+  postgres-transactions:
+    image: postgres:16-alpine
+    container_name: gerenciar-financas-postgres-transactions
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${TRANSACTIONS_POSTGRES_DB}
+      POSTGRES_USER: ${TRANSACTIONS_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${TRANSACTIONS_POSTGRES_PASSWORD}
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres-transactions-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${TRANSACTIONS_POSTGRES_USER} -d ${TRANSACTIONS_POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
+  user:
+    build:
+      context: ./users
+      dockerfile: Dockerfile
     container_name: gerenciar-financas-user
     restart: on-failure
-
     environment:
       SERVER_PORT: 8080
-      DB_URL: jdbc:postgresql://postgres-users:5432/${POSTGRES_DB}
-      DB_USERNAME: ${POSTGRES_USER}
-      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_URL: jdbc:postgresql://postgres-users:5432/${USERS_POSTGRES_DB}
+      DB_USERNAME: ${USERS_POSTGRES_USER}
+      DB_PASSWORD: ${USERS_POSTGRES_PASSWORD}
       DDL_AUTO: update
-
     ports:
       - "8082:8080"
-
     depends_on:
       postgres-users:
         condition: service_healthy
 
+  transactions:
+    build:
+      context: ./transactions
+      dockerfile: Dockerfile
+    container_name: gerenciar-financas-transactions
+    restart: on-failure
+    environment:
+      SERVER_PORT: 8080
+      DB_URL: jdbc:postgresql://postgres-transactions:5432/${TRANSACTIONS_POSTGRES_DB}
+      DB_USERNAME: ${TRANSACTIONS_POSTGRES_USER}
+      DB_PASSWORD: ${TRANSACTIONS_POSTGRES_PASSWORD}
+      DDL_AUTO: update
+      USER_SERVICE_URL: http://user:8080
+    ports:
+      - "8083:8080"
+    depends_on:
+      postgres-transactions:
+        condition: service_healthy
+      user:
+        condition: service_started
+
 volumes:
   postgres-users-data:
+    name: gerenciar-financas_postgres-users-data
+
+  postgres-transactions-data:
+    name: transactions_postgres-transactions-data

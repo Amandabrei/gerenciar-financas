@@ -8,6 +8,7 @@ import com.gerenciar.financas.transactions.application.port.out.exchange.Exchang
 import com.gerenciar.financas.transactions.domain.enums.TransactionStatus;
 import com.gerenciar.financas.transactions.domain.enums.TransactionType;
 import com.gerenciar.financas.transactions.domain.exception.InvalidTransactionException;
+import com.gerenciar.financas.transactions.domain.exception.UserNotFoundException;
 import com.gerenciar.financas.transactions.domain.model.Transaction;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -76,7 +77,7 @@ class CreateTransactionServiceTest {
         when(userValidationPort.userExists(ownerId)).thenReturn(false);
 
         assertThrows(
-                InvalidTransactionException.class,
+                UserNotFoundException.class,
                 () -> service.createDeposit(
                         ownerId,
                         new BigDecimal("500.00"),
@@ -220,7 +221,7 @@ class CreateTransactionServiceTest {
         when(userValidationPort.userExists(destinationUserId)).thenReturn(false);
 
         assertThrows(
-                InvalidTransactionException.class,
+                UserNotFoundException.class,
                 () -> service.createTransfer(
                         ownerId,
                         destinationUserId,

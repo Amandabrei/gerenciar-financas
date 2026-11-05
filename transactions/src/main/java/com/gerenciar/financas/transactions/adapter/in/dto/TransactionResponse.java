@@ -4,6 +4,7 @@ import com.gerenciar.financas.transactions.domain.enums.TransactionStatus;
 import com.gerenciar.financas.transactions.domain.enums.TransactionType;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -17,6 +18,10 @@ public record TransactionResponse(
         String description,
         String category,
         TransactionStatus status,
-        String rejectionReason
+        String rejectionReason,
+        BigDecimal usdExchangeRate,
+        LocalDate usdQuoteDate,
+        BigDecimal eurExchangeRate,
+        LocalDate eurQuoteDate
 ) {
 }

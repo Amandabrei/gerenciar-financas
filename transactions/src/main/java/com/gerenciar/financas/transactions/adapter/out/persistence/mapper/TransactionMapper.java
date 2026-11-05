@@ -19,7 +19,11 @@ public class TransactionMapper {
                 transaction.getCategory(),
                 transaction.getStatus(),
                 transaction.getRejectionReason(),
-                transaction.getOriginalTransactionId()
+                transaction.getOriginalTransactionId(),
+                transaction.getUsdExchangeRate(),
+                transaction.getUsdQuoteDate(),
+                transaction.getEurExchangeRate(),
+                transaction.getEurQuoteDate()
         );
     }
 
@@ -35,7 +39,11 @@ public class TransactionMapper {
                 entity.getCategory(),
                 entity.getStatus(),
                 entity.getRejectionReason(),
-                entity.getOriginalTransactionId()
+                entity.getOriginalTransactionId(),
+                entity.getUsdExchangeRate(),
+                entity.getUsdQuoteDate(),
+                entity.getEurExchangeRate(),
+                entity.getEurQuoteDate()
         );
     }
 }

@@ -73,7 +73,11 @@ public class TransactionCompensationService {
                 original.getCategory(),
                 status,
                 rejectionReason,
-                original.getId()
+                original.getId(),
+                original.getUsdExchangeRate(),
+                original.getUsdQuoteDate(),
+                original.getEurExchangeRate(),
+                original.getEurQuoteDate()
         );
     }
 }

@@ -12,6 +12,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -158,7 +159,11 @@ class FindTransactionServiceTest {
                 type == TransactionType.PURCHASE ? "ALIMENTACAO" : null,
                 TransactionStatus.APPROVED,
                 null,
-                null
+                null,
+                new BigDecimal("5.432100"),
+                LocalDate.of(2026, 11, 4),
+                new BigDecimal("6.123400"),
+                LocalDate.of(2026, 11, 4)
         );
     }
 }

@@ -1,28 +1,31 @@
-
 package com.gerenciar.financas.transactions.adapter.in.controller;
 
+import com.gerenciar.financas.transactions.adapter.in.dto.CreatePurchaseRequest;
+import com.gerenciar.financas.transactions.adapter.in.dto.CreateTransactionRequest;
+import com.gerenciar.financas.transactions.adapter.in.dto.CreateTransferRequest;
 import com.gerenciar.financas.transactions.adapter.in.dto.TransactionResponse;
 import com.gerenciar.financas.transactions.application.port.in.CreateTransactionUseCase;
 import com.gerenciar.financas.transactions.application.port.in.FindTransactionUseCase;
 import com.gerenciar.financas.transactions.domain.enums.TransactionType;
+import com.gerenciar.financas.transactions.domain.exception.TransactionNotFoundException;
 import com.gerenciar.financas.transactions.domain.model.Transaction;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
 
-import org.springframework.http.HttpStatus;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/transactions")
+@Tag(name = "Transações", description = "Gerenciamento de transações financeiras")
 public class TransactionController {
 
     private final CreateTransactionUseCase createTransactionUseCase;
@@ -36,17 +39,26 @@ public class TransactionController {
     }
 
     @GetMapping("/{id}")
+    @Operation(summary = "Consultar transação por ID", description = "Consulta uma transação pelo seu identificador.")
     public ResponseEntity<TransactionResponse> findById(@PathVariable UUID id) {
-        return findTransactionUseCase.findById(id)
-                .map(transaction -> ResponseEntity.ok(toResponse(transaction)))
-                .orElseGet(() -> ResponseEntity.notFound().build());
+        Transaction transaction = findTransactionUseCase.findById(id)
+                .orElseThrow(() -> new TransactionNotFoundException(
+                        "Transação não encontrada."
+                ));
+
+        return ResponseEntity.ok(toResponse(transaction));
     }
 
     @GetMapping
+    @Operation(summary = "Listar transações", description = "Lista as transações de um usuário com filtros opcionais.")
     public List<TransactionResponse> findAllByOwnerId(
             @RequestParam UUID ownerId,
-            @RequestParam(required = false) LocalDateTime startDate,
-            @RequestParam(required = false) LocalDateTime endDate,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
+            LocalDateTime startDate,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
+            LocalDateTime endDate,
             @RequestParam(required = false) TransactionType type) {
 
         return findTransactionUseCase.findAllByOwnerId(
@@ -57,8 +69,8 @@ public class TransactionController {
     }
 
     @PostMapping("/deposits")
-    @ResponseStatus(HttpStatus.CREATED)
-    public TransactionResponse createDeposit(
+    @Operation(summary = "Registrar depósito", description = "Registra um depósito na conta do usuário.")
+    public ResponseEntity<TransactionResponse> createDeposit(
             @Valid @RequestBody CreateTransactionRequest request) {
 
         Transaction transaction = createTransactionUseCase.createDeposit(
@@ -67,12 +79,12 @@ public class TransactionController {
                 request.description()
         );
 
-        return toResponse(transaction);
+        return createdResponse(transaction);
     }
 
-    @PostMapping("/withdrawals")
-    @ResponseStatus(HttpStatus.CREATED)
-    public TransactionResponse createWithdrawal(
+    @PostMapping("/withdrawal")
+    @Operation(summary = "Registrar saque", description = "Registra um saque na conta do usuário.")
+    public ResponseEntity<TransactionResponse> createWithdrawal(
             @Valid @RequestBody CreateTransactionRequest request) {
 
         Transaction transaction = createTransactionUseCase.createWithdrawal(
@@ -81,12 +93,12 @@ public class TransactionController {
                 request.description()
         );
 
-        return toResponse(transaction);
+        return createdResponse(transaction);
     }
 
     @PostMapping("/transfers")
-    @ResponseStatus(HttpStatus.CREATED)
-    public TransactionResponse createTransfer(
+    @Operation(summary = "Registrar transferência", description = "Registra uma transferência entre usuários.")
+    public ResponseEntity<TransactionResponse> createTransfer(
             @Valid @RequestBody CreateTransferRequest request) {
 
         Transaction transaction = createTransactionUseCase.createTransfer(
@@ -96,12 +108,12 @@ public class TransactionController {
                 request.description()
         );
 
-        return toResponse(transaction);
+        return createdResponse(transaction);
     }
 
-    @PostMapping("/purchases")
-    @ResponseStatus(HttpStatus.CREATED)
-    public TransactionResponse createPurchase(
+    @PostMapping("/purchase")
+    @Operation(summary = "Registrar compra", description = "Registra uma compra com sua respectiva categoria.")
+    public ResponseEntity<TransactionResponse> createPurchase(
             @Valid @RequestBody CreatePurchaseRequest request) {
 
         Transaction transaction = createTransactionUseCase.createPurchase(
@@ -111,7 +123,19 @@ public class TransactionController {
                 request.category()
         );
 
-        return toResponse(transaction);
+        return createdResponse(transaction);
+    }
+
+    private ResponseEntity<TransactionResponse> createdResponse(
+            Transaction transaction) {
+
+        var location = ServletUriComponentsBuilder
+                .fromCurrentContextPath()
+                .path("/transactions/{id}")
+                .buildAndExpand(transaction.getId())
+                .toUri();
+
+        return ResponseEntity.created(location).body(toResponse(transaction));
     }
 
     private TransactionResponse toResponse(Transaction transaction) {
@@ -125,27 +149,11 @@ public class TransactionController {
                 transaction.getDescription(),
                 transaction.getCategory(),
                 transaction.getStatus(),
-                transaction.getRejectionReason()
+                transaction.getRejectionReason(),
+                transaction.getUsdExchangeRate(),
+                transaction.getUsdQuoteDate(),
+                transaction.getEurExchangeRate(),
+                transaction.getEurQuoteDate()
         );
     }
-
-    public record CreateTransactionRequest(
-            @NotNull UUID ownerId,
-            @NotNull @Positive BigDecimal amount,
-            @NotBlank String description
-    ) {}
-
-    public record CreateTransferRequest(
-            @NotNull UUID ownerId,
-            @NotNull UUID destinationUserId,
-            @NotNull @Positive BigDecimal amount,
-            @NotBlank String description
-    ) {}
-
-    public record CreatePurchaseRequest(
-            @NotNull UUID ownerId,
-            @NotNull @Positive BigDecimal amount,
-            @NotBlank String description,
-            @NotBlank String category
-    ) {}
 }

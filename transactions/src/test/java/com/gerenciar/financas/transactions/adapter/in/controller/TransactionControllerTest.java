@@ -225,4 +225,29 @@ class TransactionControllerTest {
                         .value("Ocorreu um erro interno inesperado."));
     }
 
+
+    @Test
+    void deveRetornar400QuandoJsonEstiverMalformado() throws Exception {
+        mockMvc.perform(post("/transactions/deposits")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "ownerId":
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.message")
+                        .value("Corpo da requisição inválido ou malformado."));
+    }
+
+    @Test
+    void deveRetornar400QuandoUuidDaUrlForInvalido() throws Exception {
+        mockMvc.perform(get("/transactions/{id}", "uuid-invalido"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.message")
+                        .value("Parâmetro inválido: id."));
+    }
+
+
 }

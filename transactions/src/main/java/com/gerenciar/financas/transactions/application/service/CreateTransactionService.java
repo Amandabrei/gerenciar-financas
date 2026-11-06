@@ -17,6 +17,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
@@ -39,6 +40,22 @@ public class CreateTransactionService implements CreateTransactionUseCase {
         this.userValidationPort = userValidationPort;
         this.accountFinancialPort = accountFinancialPort;
         this.exchangeRatePort = exchangeRatePort;
+    }
+
+    private BigDecimal calculateApprovedDailySpent(UUID ownerId) {
+        LocalDate today = LocalDate.now();
+
+        return transactionRepositoryPort.findAllByOwnerId(ownerId)
+                .stream()
+                .filter(transaction -> transaction.getStatus() == TransactionStatus.APPROVED)
+                .filter(transaction -> transaction.getCreatedAt().toLocalDate().equals(today))
+                .filter(transaction ->
+                        transaction.getType() == TransactionType.WITHDRAWAL
+                                || transaction.getType() == TransactionType.TRANSFER
+                                || transaction.getType() == TransactionType.PURCHASE
+                )
+                .map(Transaction::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     @Override
@@ -157,7 +174,13 @@ public class CreateTransactionService implements CreateTransactionUseCase {
             return "O valor ultrapassa o limite por transação.";
         }
 
-        if (financialInfo.dailySpent().add(amount).compareTo(financialInfo.dailyLimit()) > 0) {
+        BigDecimal approvedDailySpent = calculateApprovedDailySpent(ownerId);
+
+        BigDecimal totalDailySpent = financialInfo.dailySpent()
+                .add(approvedDailySpent)
+                .add(amount);
+
+        if (totalDailySpent.compareTo(financialInfo.dailyLimit()) > 0) {
             return "O limite diário foi ultrapassado.";
         }
 

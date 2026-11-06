@@ -5,6 +5,7 @@ import com.gerenciar.financas.transactions.application.port.out.UserValidationPo
 import com.gerenciar.financas.transactions.application.port.out.account.AccountFinancialPort;
 import com.gerenciar.financas.transactions.application.port.out.exchange.ExchangeRatePort;
 import com.gerenciar.financas.transactions.application.service.CreateTransactionService;
+import com.gerenciar.financas.transactions.application.service.FindAccountBalanceService;
 import com.gerenciar.financas.transactions.application.service.FindTransactionService;
 
 import org.springframework.context.annotation.Bean;
@@ -32,5 +33,16 @@ public class TransactionServiceConfig {
     public FindTransactionService findTransactionService(
             TransactionRepositoryPort transactionRepositoryPort) {
         return new FindTransactionService(transactionRepositoryPort);
+    }
+
+    @Bean
+    public FindAccountBalanceService findAccountBalanceService(
+            AccountFinancialPort accountFinancialPort,
+            UserValidationPort userValidationPort) {
+
+        return new FindAccountBalanceService(
+                accountFinancialPort,
+                userValidationPort
+        );
     }
 }

@@ -67,6 +67,8 @@ services:
       DB_PASSWORD: ${TRANSACTIONS_POSTGRES_PASSWORD}
       DDL_AUTO: update
       USER_SERVICE_URL: http://user:8080
+      ACCOUNT_API_URL: ${ACCOUNT_API_URL}
+      EXCHANGE_API_URL: ${EXCHANGE_API_URL}
     ports:
       - "8083:8080"
     depends_on:

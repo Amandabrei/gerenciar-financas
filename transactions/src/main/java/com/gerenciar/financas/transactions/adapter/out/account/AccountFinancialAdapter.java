@@ -6,6 +6,7 @@ import com.gerenciar.financas.transactions.application.port.out.account.AccountF
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.util.Arrays;
 import java.util.UUID;
@@ -27,12 +28,23 @@ public class AccountFinancialAdapter implements AccountFinancialPort {
     @Override
     public AccountFinancialInfo getAccountFinancialInfo(UUID userId) {
 
-        AccountResponse[] accounts = restClient.get()
-                .uri(uriBuilder -> uriBuilder
-                        .queryParam("userId", userId)
-                        .build())
-                .retrieve()
-                .body(AccountResponse[].class);
+        AccountResponse[] accounts;
+
+        try {
+            accounts = restClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .queryParam("userId", userId)
+                            .build())
+                    .retrieve()
+                    .body(AccountResponse[].class);
+
+        } catch (RestClientResponseException exception) {
+            if (exception.getStatusCode().value() == 404) {
+                return null;
+            }
+
+            throw exception;
+        }
 
         if (accounts == null || accounts.length == 0) {
             return null;

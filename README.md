@@ -300,6 +300,43 @@ Utilizada pelo MS2 para consultar informações financeiras associadas aos usuá
 
 A indisponibilidade dessa integração não deve resultar em aprovação indevida de uma transação.
 
+#### Consulta de saldo
+
+O MS2 disponibiliza um endpoint para consultar o saldo atual de um usuário por meio da integração com a MockAPI.
+
+**Endpoint:**
+
+```http
+GET /accounts/{userId}/balance
+```
+
+**Exemplo de acesso local:**
+
+```http
+GET http://localhost:8083/accounts/550e8400-e29b-41d4-a716-446655440000/balance
+```
+
+O identificador utilizado na requisição deve corresponder ao ID de um usuário existente e com conta cadastrada na MockAPI.
+
+**Exemplo de resposta — 200 OK:**
+
+```json
+{
+  "userId": "550e8400-e29b-41d4-a716-446655440000",
+  "balance": 1500.00
+}
+```
+
+**Possíveis respostas:**
+
+| Status HTTP | Descrição |
+|---|---|
+| 200 OK | Saldo consultado com sucesso. |
+| 404 Not Found | Conta financeira não encontrada ou saldo não disponível para o usuário informado. |
+| 503 Service Unavailable | API Mock indisponível no momento. |
+
+A consulta utiliza o identificador do usuário para localizar sua conta na MockAPI. O saldo retornado representa o valor disponibilizado pela integração externa.
+
 ### BrasilAPI
 
 Utilizada para consultar taxas de câmbio, permitindo apresentar valores convertidos em moedas como USD e EUR, com suas respectivas taxas e datas de referência.

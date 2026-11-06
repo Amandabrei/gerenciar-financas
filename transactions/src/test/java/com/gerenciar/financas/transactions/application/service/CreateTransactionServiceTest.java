@@ -320,7 +320,7 @@ class CreateTransactionServiceTest {
     }
 
     @Test
-    void shouldRejectWithdrawalWhenDailyLimitIsExceeded() {
+    void shouldApproveWithdrawalWhenMockDailySpentIsNotCounted() {
         UUID ownerId = UUID.randomUUID();
         BigDecimal amount = new BigDecimal("200.00");
 
@@ -341,11 +341,7 @@ class CreateTransactionServiceTest {
                 ownerId, amount, "Retirada de teste"
         );
 
-        assertEquals(TransactionStatus.REJECTED, result.getStatus());
-        assertEquals(
-                "O limite diário foi ultrapassado.",
-                result.getRejectionReason()
-        );
+        assertEquals(TransactionStatus.APPROVED, result.getStatus());
     }
 
     @Test
@@ -377,7 +373,7 @@ class CreateTransactionServiceTest {
     }
 
     @Test
-    void shouldRejectWithdrawalWhenPreviousApprovedTransactionsExceedDailyLimit() {
+    void shouldApproveWithdrawalWhenPreviousApprovedTransactionsAreWithinDailyLimit() {
         UUID ownerId = UUID.randomUUID();
 
         Transaction previousWithdrawal = new Transaction(
@@ -420,13 +416,62 @@ class CreateTransactionServiceTest {
                 "Novo saque"
         );
 
+        assertEquals(TransactionStatus.APPROVED, result.getStatus());
+    }
+
+    @Test
+    void shouldRejectWithdrawalWhenPreviousApprovedTransactionsExceedDailyLimit() {
+        UUID ownerId = UUID.randomUUID();
+
+        Transaction previousWithdrawal = new Transaction(
+                UUID.randomUUID(),
+                ownerId,
+                null,
+                TransactionType.WITHDRAWAL,
+                new BigDecimal("250.00"),
+                java.time.LocalDateTime.now(),
+                "Saque anterior",
+                "WITHDRAWAL",
+                TransactionStatus.APPROVED,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        when(userValidationPort.userExists(ownerId)).thenReturn(true);
+
+        when(transactionRepositoryPort.findAllByOwnerId(ownerId))
+                .thenReturn(java.util.List.of(previousWithdrawal));
+
+        when(accountFinancialPort.getAccountFinancialInfo(ownerId))
+                .thenReturn(new AccountFinancialInfo(
+                        new BigDecimal("1000.00"),
+                        new BigDecimal("300.00"),
+                        new BigDecimal("500.00"),
+                        new BigDecimal("100.00")
+                ));
+
+        when(transactionRepositoryPort.save(any(Transaction.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        Transaction result = service.createWithdrawal(
+                ownerId,
+                new BigDecimal("100.00"),
+                "Novo saque"
+        );
+
         assertEquals(TransactionStatus.REJECTED, result.getStatus());
         assertEquals(
                 "O limite diário foi ultrapassado.",
                 result.getRejectionReason()
         );
-    }
 
+        verify(transactionRepositoryPort).save(any(Transaction.class));
+    }
+    
     @Test
     void shouldIgnoreRejectedTransactionsWhenCalculatingDailySpent() {
         UUID ownerId = UUID.randomUUID();
@@ -522,7 +567,7 @@ class CreateTransactionServiceTest {
     }
 
     @Test
-    void shouldCountApprovedTransfersWhenCalculatingDailySpent() {
+    void shouldApproveTransferWhenPreviousApprovedTransactionsAreWithinDailyLimit() {
         UUID ownerId = UUID.randomUUID();
         UUID destinationUserId = UUID.randomUUID();
         UUID newDestinationUserId = UUID.randomUUID();
@@ -570,15 +615,11 @@ class CreateTransactionServiceTest {
                 "Transferência teste"
         );
 
-        assertEquals(TransactionStatus.REJECTED, result.getStatus());
-        assertEquals(
-                "O limite diário foi ultrapassado.",
-                result.getRejectionReason()
-        );
+        assertEquals(TransactionStatus.APPROVED, result.getStatus());
     }
 
     @Test
-    void shouldCountApprovedPurchasesWhenCalculatingDailySpent() {
+    void shouldApprovePurchaseWhenPreviousApprovedTransactionsAreWithinDailyLimit() {
         UUID ownerId = UUID.randomUUID();
 
         Transaction previousPurchase = new Transaction(
@@ -622,10 +663,6 @@ class CreateTransactionServiceTest {
                 "ALIMENTACAO"
         );
 
-        assertEquals(TransactionStatus.REJECTED, result.getStatus());
-        assertEquals(
-                "O limite diário foi ultrapassado.",
-                result.getRejectionReason()
-        );
+        assertEquals(TransactionStatus.APPROVED, result.getStatus());
     }
 }

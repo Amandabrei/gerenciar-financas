@@ -317,6 +317,32 @@ O projeto considera os seguintes cuidados:
 - Separação das configurações sensíveis em variáveis de ambiente.
 - Não versionamento de arquivos `.env` com credenciais reais.
 
+### 12.1. Regras de negócio e decisões técnicas
+
+#### Controle do limite diário
+
+O MS2 utiliza as transações aprovadas e registradas no próprio serviço como fonte de referência para calcular os gastos diários do usuário.
+
+A MockAPI fornece o saldo disponível, o limite diário e o limite por transação. Entretanto, o campo `dailySpent` retornado pela integração não é utilizado no cálculo, evitando a duplicidade de valores entre fontes diferentes.
+
+Para verificar o limite diário, o MS2 considera as transações aprovadas do dia atual dos seguintes tipos:
+
+- Saques (`WITHDRAWAL`);
+- Transferências (`TRANSFER`);
+- Compras (`PURCHASE`).
+
+Depósitos e transações rejeitadas não são contabilizados como gastos.
+
+#### Consulta de cotações
+
+A integração com a BrasilAPI consulta a cotação da moeda solicitada para a data atual.
+
+Quando não existe cotação disponível para a data consultada, como pode ocorrer em finais de semana e feriados, o MS2 realiza novas consultas retrocedendo um dia por tentativa, até encontrar uma cotação válida ou atingir o limite de dez dias de busca.
+
+A resposta informa a taxa encontrada e a respectiva data de referência (`quoteDate`).
+
+Falhas de comunicação ou indisponibilidade da API externa não devem impedir a consulta de transações já registradas.
+
 ## 13. Considerações finais
 
 O projeto foi organizado em um único repositório Git, mantendo os dois microsserviços independentes e com responsabilidades separadas.

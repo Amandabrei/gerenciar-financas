@@ -1,4 +1,3 @@
-
 package com.gerenciar.financas.transactions.adapter.in.exception;
 
 import com.gerenciar.financas.transactions.domain.exception.InvalidTransactionException;
@@ -21,6 +20,17 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InvalidTransactionException.class)
     public ResponseEntity<ApiError> handleInvalidTransaction(
             InvalidTransactionException exception) {
+
+        return buildResponse(
+                HttpStatus.BAD_REQUEST,
+                exception.getMessage(),
+                List.of()
+        );
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiError> handleIllegalArgument(
+            IllegalArgumentException exception) {
 
         return buildResponse(
                 HttpStatus.BAD_REQUEST,
@@ -78,6 +88,17 @@ public class GlobalExceptionHandler {
         return buildResponse(
                 HttpStatus.NOT_FOUND,
                 exception.getMessage(),
+                List.of()
+        );
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ApiError> handleGenericException(
+            Exception exception) {
+
+        return buildResponse(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "Ocorreu um erro interno inesperado.",
                 List.of()
         );
     }

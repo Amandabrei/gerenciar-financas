@@ -165,8 +165,7 @@ public class CreateTransactionService implements CreateTransactionUseCase {
         if (financialInfo == null
                 || financialInfo.balance() == null
                 || financialInfo.dailyLimit() == null
-                || financialInfo.transactionLimit() == null
-                || financialInfo.dailySpent() == null) {
+                || financialInfo.transactionLimit() == null) {
             return "Dados financeiros indisponíveis. Operação não aprovada.";
         }
 
@@ -176,9 +175,7 @@ public class CreateTransactionService implements CreateTransactionUseCase {
 
         BigDecimal approvedDailySpent = calculateApprovedDailySpent(ownerId);
 
-        BigDecimal totalDailySpent = financialInfo.dailySpent()
-                .add(approvedDailySpent)
-                .add(amount);
+        BigDecimal totalDailySpent = approvedDailySpent.add(amount);
 
         if (totalDailySpent.compareTo(financialInfo.dailyLimit()) > 0) {
             return "O limite diário foi ultrapassado.";

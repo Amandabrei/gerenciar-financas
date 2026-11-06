@@ -181,4 +181,48 @@ class TransactionControllerTest {
                 .andExpect(jsonPath("$.type").value("PURCHASE"))
                 .andExpect(jsonPath("$.category").value("ALIMENTACAO"));
     }
+
+
+    @Test
+    void deveRetornar400QuandoOcorreIllegalArgumentException() throws Exception {
+        given(createTransactionUseCase.createDeposit(
+                eq(ownerId), any(BigDecimal.class), anyString()))
+                .willThrow(new IllegalArgumentException("Valor da transação inválido."));
+
+        mockMvc.perform(post("/transactions/deposits")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "ownerId": "%s",
+                                  "amount": 100.00,
+                                  "description": "Depósito de teste"
+                                }
+                                """.formatted(ownerId)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.message")
+                        .value("Valor da transação inválido."));
+    }
+
+    @Test
+    void deveRetornar500QuandoOcorreErroInesperado() throws Exception {
+        given(createTransactionUseCase.createDeposit(
+                eq(ownerId), any(BigDecimal.class), anyString()))
+                .willThrow(new RuntimeException("Erro interno de teste."));
+
+        mockMvc.perform(post("/transactions/deposits")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "ownerId": "%s",
+                                  "amount": 100.00,
+                                  "description": "Depósito de teste"
+                                }
+                                """.formatted(ownerId)))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.status").value(500))
+                .andExpect(jsonPath("$.message")
+                        .value("Ocorreu um erro interno inesperado."));
+    }
+
 }

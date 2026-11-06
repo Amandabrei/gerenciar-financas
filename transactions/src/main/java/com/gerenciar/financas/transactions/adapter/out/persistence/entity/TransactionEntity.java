@@ -5,6 +5,7 @@ import com.gerenciar.financas.transactions.domain.enums.TransactionType;
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -43,6 +44,16 @@ public class TransactionEntity {
     @Column(length = 500)
     private String rejectionReason;
 
+    @Column(precision = 19, scale = 6)
+    private BigDecimal usdExchangeRate;
+
+    private LocalDate usdQuoteDate;
+
+    @Column(precision = 19, scale = 6)
+    private BigDecimal eurExchangeRate;
+
+    private LocalDate eurQuoteDate;
+
     private UUID originalTransactionId;
 
     protected TransactionEntity() {
@@ -60,7 +71,11 @@ public class TransactionEntity {
             String category,
             TransactionStatus status,
             String rejectionReason,
-            UUID originalTransactionId
+            UUID originalTransactionId,
+            BigDecimal usdExchangeRate,
+            LocalDate usdQuoteDate,
+            BigDecimal eurExchangeRate,
+            LocalDate eurQuoteDate
     ) {
         this.id = id;
         this.ownerId = ownerId;
@@ -73,6 +88,10 @@ public class TransactionEntity {
         this.status = status;
         this.rejectionReason = rejectionReason;
         this.originalTransactionId = originalTransactionId;
+        this.usdExchangeRate = usdExchangeRate;
+        this.usdQuoteDate = usdQuoteDate;
+        this.eurExchangeRate = eurExchangeRate;
+        this.eurQuoteDate = eurQuoteDate;
     }
 
     public UUID getId() {
@@ -117,5 +136,21 @@ public class TransactionEntity {
 
     public UUID getOriginalTransactionId() {
         return originalTransactionId;
+    }
+
+    public BigDecimal getUsdExchangeRate() {
+        return usdExchangeRate;
+    }
+
+    public LocalDate getUsdQuoteDate() {
+        return usdQuoteDate;
+    }
+
+    public BigDecimal getEurExchangeRate() {
+        return eurExchangeRate;
+    }
+
+    public LocalDate getEurQuoteDate() {
+        return eurQuoteDate;
     }
 }

@@ -8,6 +8,7 @@ import com.gerenciar.financas.transactions.application.port.out.exchange.Exchang
 import com.gerenciar.financas.transactions.domain.enums.TransactionStatus;
 import com.gerenciar.financas.transactions.domain.enums.TransactionType;
 import com.gerenciar.financas.transactions.domain.exception.InvalidTransactionException;
+import com.gerenciar.financas.transactions.domain.exception.UserNotFoundException;
 import com.gerenciar.financas.transactions.domain.model.Transaction;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -76,7 +77,7 @@ class CreateTransactionServiceTest {
         when(userValidationPort.userExists(ownerId)).thenReturn(false);
 
         assertThrows(
-                InvalidTransactionException.class,
+                UserNotFoundException.class,
                 () -> service.createDeposit(
                         ownerId,
                         new BigDecimal("500.00"),
@@ -220,7 +221,7 @@ class CreateTransactionServiceTest {
         when(userValidationPort.userExists(destinationUserId)).thenReturn(false);
 
         assertThrows(
-                InvalidTransactionException.class,
+                UserNotFoundException.class,
                 () -> service.createTransfer(
                         ownerId,
                         destinationUserId,
@@ -319,7 +320,7 @@ class CreateTransactionServiceTest {
     }
 
     @Test
-    void shouldRejectWithdrawalWhenDailyLimitIsExceeded() {
+    void shouldApproveWithdrawalWhenMockDailySpentIsNotCounted() {
         UUID ownerId = UUID.randomUUID();
         BigDecimal amount = new BigDecimal("200.00");
 
@@ -340,11 +341,7 @@ class CreateTransactionServiceTest {
                 ownerId, amount, "Retirada de teste"
         );
 
-        assertEquals(TransactionStatus.REJECTED, result.getStatus());
-        assertEquals(
-                "O limite diário foi ultrapassado.",
-                result.getRejectionReason()
-        );
+        assertEquals(TransactionStatus.APPROVED, result.getStatus());
     }
 
     @Test
@@ -373,5 +370,299 @@ class CreateTransactionServiceTest {
 
         assertEquals(TransactionStatus.REJECTED, result.getStatus());
         assertEquals("Saldo insuficiente.", result.getRejectionReason());
+    }
+
+    @Test
+    void shouldApproveWithdrawalWhenPreviousApprovedTransactionsAreWithinDailyLimit() {
+        UUID ownerId = UUID.randomUUID();
+
+        Transaction previousWithdrawal = new Transaction(
+                UUID.randomUUID(),
+                ownerId,
+                null,
+                TransactionType.WITHDRAWAL,
+                new BigDecimal("150.00"),
+                java.time.LocalDateTime.now(),
+                "Saque anterior",
+                "WITHDRAWAL",
+                TransactionStatus.APPROVED,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        when(userValidationPort.userExists(ownerId)).thenReturn(true);
+
+        when(transactionRepositoryPort.findAllByOwnerId(ownerId))
+                .thenReturn(java.util.List.of(previousWithdrawal));
+
+        when(accountFinancialPort.getAccountFinancialInfo(ownerId))
+                .thenReturn(new AccountFinancialInfo(
+                        new BigDecimal("1000.00"),
+                        new BigDecimal("300.00"),
+                        new BigDecimal("500.00"),
+                        new BigDecimal("100.00")
+                ));
+
+        when(transactionRepositoryPort.save(any(Transaction.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        Transaction result = service.createWithdrawal(
+                ownerId,
+                new BigDecimal("100.00"),
+                "Novo saque"
+        );
+
+        assertEquals(TransactionStatus.APPROVED, result.getStatus());
+    }
+
+    @Test
+    void shouldRejectWithdrawalWhenPreviousApprovedTransactionsExceedDailyLimit() {
+        UUID ownerId = UUID.randomUUID();
+
+        Transaction previousWithdrawal = new Transaction(
+                UUID.randomUUID(),
+                ownerId,
+                null,
+                TransactionType.WITHDRAWAL,
+                new BigDecimal("250.00"),
+                java.time.LocalDateTime.now(),
+                "Saque anterior",
+                "WITHDRAWAL",
+                TransactionStatus.APPROVED,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        when(userValidationPort.userExists(ownerId)).thenReturn(true);
+
+        when(transactionRepositoryPort.findAllByOwnerId(ownerId))
+                .thenReturn(java.util.List.of(previousWithdrawal));
+
+        when(accountFinancialPort.getAccountFinancialInfo(ownerId))
+                .thenReturn(new AccountFinancialInfo(
+                        new BigDecimal("1000.00"),
+                        new BigDecimal("300.00"),
+                        new BigDecimal("500.00"),
+                        new BigDecimal("100.00")
+                ));
+
+        when(transactionRepositoryPort.save(any(Transaction.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        Transaction result = service.createWithdrawal(
+                ownerId,
+                new BigDecimal("100.00"),
+                "Novo saque"
+        );
+
+        assertEquals(TransactionStatus.REJECTED, result.getStatus());
+        assertEquals(
+                "O limite diário foi ultrapassado.",
+                result.getRejectionReason()
+        );
+
+        verify(transactionRepositoryPort).save(any(Transaction.class));
+    }
+    
+    @Test
+    void shouldIgnoreRejectedTransactionsWhenCalculatingDailySpent() {
+        UUID ownerId = UUID.randomUUID();
+
+        Transaction rejectedWithdrawal = new Transaction(
+                UUID.randomUUID(),
+                ownerId,
+                null,
+                TransactionType.WITHDRAWAL,
+                new BigDecimal("250.00"),
+                java.time.LocalDateTime.now(),
+                "Saque rejeitado",
+                "WITHDRAWAL",
+                TransactionStatus.REJECTED,
+                "Saldo insuficiente.",
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        when(userValidationPort.userExists(ownerId)).thenReturn(true);
+
+        when(transactionRepositoryPort.findAllByOwnerId(ownerId))
+                .thenReturn(java.util.List.of(rejectedWithdrawal));
+
+        when(accountFinancialPort.getAccountFinancialInfo(ownerId))
+                .thenReturn(new AccountFinancialInfo(
+                        new BigDecimal("1000.00"),
+                        new BigDecimal("300.00"),
+                        new BigDecimal("500.00"),
+                        new BigDecimal("100.00")
+                ));
+
+        when(transactionRepositoryPort.save(any(Transaction.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        Transaction result = service.createWithdrawal(
+                ownerId,
+                new BigDecimal("100.00"),
+                "Novo saque"
+        );
+
+        assertEquals(TransactionStatus.APPROVED, result.getStatus());
+    }
+
+    @Test
+    void shouldIgnoreApprovedDepositsWhenCalculatingDailySpent() {
+        UUID ownerId = UUID.randomUUID();
+
+        Transaction previousDeposit = new Transaction(
+                UUID.randomUUID(),
+                ownerId,
+                null,
+                TransactionType.DEPOSIT,
+                new BigDecimal("250.00"),
+                java.time.LocalDateTime.now(),
+                "Depósito anterior",
+                "DEPOSIT",
+                TransactionStatus.APPROVED,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        when(userValidationPort.userExists(ownerId)).thenReturn(true);
+
+        when(transactionRepositoryPort.findAllByOwnerId(ownerId))
+                .thenReturn(java.util.List.of(previousDeposit));
+
+        when(accountFinancialPort.getAccountFinancialInfo(ownerId))
+                .thenReturn(new AccountFinancialInfo(
+                        new BigDecimal("1000.00"),
+                        new BigDecimal("300.00"),
+                        new BigDecimal("500.00"),
+                        new BigDecimal("100.00")
+                ));
+
+        when(transactionRepositoryPort.save(any(Transaction.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        Transaction result = service.createWithdrawal(
+                ownerId,
+                new BigDecimal("100.00"),
+                "Novo saque"
+        );
+
+        assertEquals(TransactionStatus.APPROVED, result.getStatus());
+    }
+
+    @Test
+    void shouldApproveTransferWhenPreviousApprovedTransactionsAreWithinDailyLimit() {
+        UUID ownerId = UUID.randomUUID();
+        UUID destinationUserId = UUID.randomUUID();
+        UUID newDestinationUserId = UUID.randomUUID();
+
+        Transaction previousTransfer = new Transaction(
+                UUID.randomUUID(),
+                ownerId,
+                destinationUserId,
+                TransactionType.TRANSFER,
+                new BigDecimal("150.00"),
+                java.time.LocalDateTime.now(),
+                "Transferência anterior",
+                "TRANSFER",
+                TransactionStatus.APPROVED,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        when(userValidationPort.userExists(ownerId)).thenReturn(true);
+        when(userValidationPort.userExists(destinationUserId)).thenReturn(true);
+        when(userValidationPort.userExists(newDestinationUserId)).thenReturn(true);
+
+        when(transactionRepositoryPort.findAllByOwnerId(ownerId))
+                .thenReturn(java.util.List.of(previousTransfer));
+
+        when(accountFinancialPort.getAccountFinancialInfo(ownerId))
+                .thenReturn(new AccountFinancialInfo(
+                        new BigDecimal("1000.00"),
+                        new BigDecimal("300.00"),
+                        new BigDecimal("500.00"),
+                        new BigDecimal("100.00")
+                ));
+
+        when(transactionRepositoryPort.save(any(Transaction.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        Transaction result = service.createTransfer(
+                ownerId,
+                newDestinationUserId,
+                new BigDecimal("100.00"),
+                "Transferência teste"
+        );
+
+        assertEquals(TransactionStatus.APPROVED, result.getStatus());
+    }
+
+    @Test
+    void shouldApprovePurchaseWhenPreviousApprovedTransactionsAreWithinDailyLimit() {
+        UUID ownerId = UUID.randomUUID();
+
+        Transaction previousPurchase = new Transaction(
+                UUID.randomUUID(),
+                ownerId,
+                null,
+                TransactionType.PURCHASE,
+                new BigDecimal("150.00"),
+                java.time.LocalDateTime.now(),
+                "Compra anterior",
+                "ALIMENTACAO",
+                TransactionStatus.APPROVED,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        when(userValidationPort.userExists(ownerId)).thenReturn(true);
+
+        when(transactionRepositoryPort.findAllByOwnerId(ownerId))
+                .thenReturn(java.util.List.of(previousPurchase));
+
+        when(accountFinancialPort.getAccountFinancialInfo(ownerId))
+                .thenReturn(new AccountFinancialInfo(
+                        new BigDecimal("1000.00"),
+                        new BigDecimal("300.00"),
+                        new BigDecimal("500.00"),
+                        new BigDecimal("100.00")
+                ));
+
+        when(transactionRepositoryPort.save(any(Transaction.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        Transaction result = service.createPurchase(
+                ownerId,
+                new BigDecimal("100.00"),
+                "Nova compra",
+                "ALIMENTACAO"
+        );
+
+        assertEquals(TransactionStatus.APPROVED, result.getStatus());
     }
 }

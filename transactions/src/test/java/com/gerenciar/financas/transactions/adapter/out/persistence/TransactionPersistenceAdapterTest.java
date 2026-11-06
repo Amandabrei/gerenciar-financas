@@ -10,6 +10,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -28,6 +29,11 @@ class TransactionPersistenceAdapterTest {
     private UUID ownerId;
     private Transaction transaction;
     private TransactionEntity entity;
+
+    private final BigDecimal usdRate = new BigDecimal("5.432100");
+    private final LocalDate usdDate = LocalDate.of(2026, 11, 4);
+    private final BigDecimal eurRate = new BigDecimal("6.123400");
+    private final LocalDate eurDate = LocalDate.of(2026, 11, 4);
 
     @BeforeEach
     void setUp() {
@@ -49,7 +55,11 @@ class TransactionPersistenceAdapterTest {
                 "DEPOSIT",
                 TransactionStatus.APPROVED,
                 null,
-                null
+                null,
+                usdRate,
+                usdDate,
+                eurRate,
+                eurDate
         );
 
         entity = mapper.toEntity(transaction);
@@ -67,6 +77,11 @@ class TransactionPersistenceAdapterTest {
         assertEquals(ownerId, result.getOwnerId());
         assertEquals(new BigDecimal("100.00"), result.getAmount());
 
+        assertEquals(usdRate, result.getUsdExchangeRate());
+        assertEquals(usdDate, result.getUsdQuoteDate());
+        assertEquals(eurRate, result.getEurExchangeRate());
+        assertEquals(eurDate, result.getEurQuoteDate());
+
         verify(repository).save(any(TransactionEntity.class));
     }
 
@@ -79,6 +94,10 @@ class TransactionPersistenceAdapterTest {
 
         assertTrue(result.isPresent());
         assertEquals(transactionId, result.get().getId());
+        assertEquals(usdRate, result.get().getUsdExchangeRate());
+        assertEquals(usdDate, result.get().getUsdQuoteDate());
+        assertEquals(eurRate, result.get().getEurExchangeRate());
+        assertEquals(eurDate, result.get().getEurQuoteDate());
 
         verify(repository).findById(transactionId);
     }
@@ -104,6 +123,8 @@ class TransactionPersistenceAdapterTest {
 
         assertEquals(1, result.size());
         assertEquals(ownerId, result.get(0).getOwnerId());
+        assertEquals(usdRate, result.get(0).getUsdExchangeRate());
+        assertEquals(eurRate, result.get(0).getEurExchangeRate());
 
         verify(repository).findAllByOwnerId(ownerId);
     }

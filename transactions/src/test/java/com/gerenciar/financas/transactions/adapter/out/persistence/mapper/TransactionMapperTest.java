@@ -8,6 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -19,6 +20,11 @@ class TransactionMapperTest {
     private UUID transactionId;
     private UUID ownerId;
     private Transaction transaction;
+
+    private final BigDecimal usdRate = new BigDecimal("5.432100");
+    private final LocalDate usdDate = LocalDate.of(2026, 11, 4);
+    private final BigDecimal eurRate = new BigDecimal("6.123400");
+    private final LocalDate eurDate = LocalDate.of(2026, 11, 4);
 
     @BeforeEach
     void setUp() {
@@ -38,7 +44,11 @@ class TransactionMapperTest {
                 "DEPOSIT",
                 TransactionStatus.APPROVED,
                 null,
-                null
+                null,
+                usdRate,
+                usdDate,
+                eurRate,
+                eurDate
         );
     }
 
@@ -53,6 +63,11 @@ class TransactionMapperTest {
         assertEquals(new BigDecimal("150.00"), entity.getAmount());
         assertEquals("Depósito inicial", entity.getDescription());
         assertEquals(TransactionStatus.APPROVED, entity.getStatus());
+
+        assertEquals(usdRate, entity.getUsdExchangeRate());
+        assertEquals(usdDate, entity.getUsdQuoteDate());
+        assertEquals(eurRate, entity.getEurExchangeRate());
+        assertEquals(eurDate, entity.getEurQuoteDate());
     }
 
     @Test
@@ -68,5 +83,10 @@ class TransactionMapperTest {
         assertEquals(new BigDecimal("150.00"), result.getAmount());
         assertEquals("Depósito inicial", result.getDescription());
         assertEquals(TransactionStatus.APPROVED, result.getStatus());
+
+        assertEquals(usdRate, result.getUsdExchangeRate());
+        assertEquals(usdDate, result.getUsdQuoteDate());
+        assertEquals(eurRate, result.getEurExchangeRate());
+        assertEquals(eurDate, result.getEurQuoteDate());
     }
 }

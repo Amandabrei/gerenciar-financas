@@ -4,6 +4,7 @@ import com.gerenciar.financas.transactions.domain.enums.TransactionStatus;
 import com.gerenciar.financas.transactions.domain.enums.TransactionType;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -20,6 +21,10 @@ public class Transaction {
     private final TransactionStatus status;
     private final String rejectionReason;
     private final UUID originalTransactionId;
+    private final BigDecimal usdExchangeRate;
+    private final LocalDate usdQuoteDate;
+    private final BigDecimal eurExchangeRate;
+    private final LocalDate eurQuoteDate;
 
     public Transaction(
             UUID id,
@@ -32,7 +37,11 @@ public class Transaction {
             String category,
             TransactionStatus status,
             String rejectionReason,
-            UUID originalTransactionId
+            UUID originalTransactionId,
+            BigDecimal usdExchangeRate,
+            LocalDate usdQuoteDate,
+            BigDecimal eurExchangeRate,
+            LocalDate eurQuoteDate
     ) {
         if (ownerId == null) {
             throw new IllegalArgumentException("O usuário proprietário é obrigatório.");
@@ -83,6 +92,10 @@ public class Transaction {
         this.status = status;
         this.rejectionReason = rejectionReason;
         this.originalTransactionId = originalTransactionId;
+        this.usdExchangeRate = usdExchangeRate;
+        this.usdQuoteDate = usdQuoteDate;
+        this.eurExchangeRate = eurExchangeRate;
+        this.eurQuoteDate = eurQuoteDate;
     }
 
     public UUID getId() {
@@ -127,5 +140,21 @@ public class Transaction {
 
     public UUID getOriginalTransactionId() {
         return originalTransactionId;
+    }
+
+    public BigDecimal getUsdExchangeRate() {
+        return usdExchangeRate;
+    }
+
+    public LocalDate getUsdQuoteDate() {
+        return usdQuoteDate;
+    }
+
+    public BigDecimal getEurExchangeRate() {
+        return eurExchangeRate;
+    }
+
+    public LocalDate getEurQuoteDate() {
+        return eurQuoteDate;
     }
 }

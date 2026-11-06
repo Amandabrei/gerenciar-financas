@@ -104,6 +104,23 @@ class AccountFinancialAdapterTest {
     }
 
     @Test
+    void shouldReturnNullWhenMockApiReturnsNotFound() {
+        UUID userId = UUID.randomUUID();
+
+        server.expect(requestTo(
+                        "http://localhost/accounts?userId=" + userId))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withStatus(HttpStatus.NOT_FOUND));
+
+        AccountFinancialInfo result =
+                adapter.getAccountFinancialInfo(userId);
+
+        assertNull(result);
+
+        server.verify();
+    }
+
+    @Test
     void shouldPropagateExceptionWhenMockApiIsUnavailable() {
         UUID userId = UUID.randomUUID();
 

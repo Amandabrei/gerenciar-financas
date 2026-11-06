@@ -122,7 +122,7 @@ cd gerenciar-financas
 
 ### 6.2. Configurar as variáveis de ambiente
 
-Na raiz do projeto, existe o arquivo `.env.example`, contendo as variáveis necessárias para configuração dos bancos de dados.
+Na raiz do projeto, existe o arquivo `.env.example`, contendo as variáveis necessárias para configuração dos bancos de dados e das integrações externas.
 
 Crie uma cópia com o nome `.env`:
 
@@ -144,14 +144,19 @@ As variáveis utilizadas são:
 
 | Variável | Descrição |
 |---|---|
-| `USERS_POSTGRES_DB` | finances_users |
-| `USERS_POSTGRES_USER` | finance_user |
+| `USERS_POSTGRES_DB` | Nome do banco de dados do MS1 (`finances_users`). |
+| `USERS_POSTGRES_USER` | Usuário do banco de dados do MS1. |
 | `USERS_POSTGRES_PASSWORD` | Senha do banco de dados do MS1. |
-| `TRANSACTIONS_POSTGRES_DB` | finances_transactions |
-| `TRANSACTIONS_POSTGRES_USER` | finance_transaction |
+| `TRANSACTIONS_POSTGRES_DB` | Nome do banco de dados do MS2 (`finances_transactions`). |
+| `TRANSACTIONS_POSTGRES_USER` | Usuário do banco de dados do MS2. |
 | `TRANSACTIONS_POSTGRES_PASSWORD` | Senha do banco de dados do MS2. |
+| `USER_SERVICE_URL` | Endereço do MS1 utilizado pelo MS2. |
+| `ACCOUNT_API_URL` | URL da API MockAPI utilizada para consulta de informações financeiras. |
+| `EXCHANGE_API_URL` | URL da BrasilAPI utilizada para consulta de cotações. |
 
-**Importante:** o arquivo `.env` contém informações locais e não deve ser enviado ao Git. O `.env.example` deve ser mantido no repositório para orientar a configuração de novos ambientes.
+As URLs das integrações externas possuem valores padrão definidos na configuração da aplicação. No ambiente Docker Compose, são disponibilizadas por meio das variáveis de ambiente.
+
+**Importante:** o arquivo `.env` contém informações locais e não deve ser enviado ao Git. O `.env.example` deve ser mantido no repositório para orientar a configuração de novos ambientes. Não armazene senhas ou credenciais reais no arquivo de exemplo.
 
 ## 7. Executando o projeto com Docker Compose
 
@@ -316,7 +321,7 @@ GET /accounts/{userId}/balance
 GET http://localhost:8083/accounts/550e8400-e29b-41d4-a716-446655440000/balance
 ```
 
-O identificador utilizado na requisição deve corresponder ao ID de um usuário existente e com conta cadastrada na MockAPI.
+O identificador utilizado na requisição deve corresponder ao ID de um usuário existente no MS1 e com conta cadastrada na MockAPI.
 
 **Exemplo de resposta — 200 OK:**
 
@@ -332,10 +337,18 @@ O identificador utilizado na requisição deve corresponder ao ID de um usuário
 | Status HTTP | Descrição |
 |---|---|
 | 200 OK | Saldo consultado com sucesso. |
-| 404 Not Found | Conta financeira não encontrada ou saldo não disponível para o usuário informado. |
+| 404 Not Found | Usuário ou conta financeira não encontrada, ou saldo não disponível para o usuário informado. |
 | 503 Service Unavailable | API Mock indisponível no momento. |
 
-A consulta utiliza o identificador do usuário para localizar sua conta na MockAPI. O saldo retornado representa o valor disponibilizado pela integração externa.
+A consulta utiliza o identificador do usuário para localizar sua conta na MockAPI. O saldo retornado representa exclusivamente o valor disponibilizado pela integração externa.
+
+**Importante — origem e atualização do saldo:**
+
+O MS2 não recalcula nem atualiza automaticamente o saldo da MockAPI com base nas transações registradas em seu próprio banco de dados.
+
+Portanto, o valor retornado representa o saldo informado pela fonte externa, e não necessariamente o saldo resultante de todas as movimentações aprovadas no MS2.
+
+Essa separação é uma característica da implementação atual. A integração de saldo não realiza conciliação automática entre o saldo da MockAPI e as transações persistidas no MS2.
 
 ### BrasilAPI
 
@@ -369,6 +382,15 @@ Para verificar o limite diário, o MS2 considera as transações aprovadas do di
 - Compras (`PURCHASE`).
 
 Depósitos e transações rejeitadas não são contabilizados como gastos.
+
+#### Diferença entre saldo e limite diário
+
+Embora ambos sejam utilizados nas validações financeiras, possuem fontes de referência distintas:
+
+- **Saldo disponível:** obtido diretamente da MockAPI, sem recálculo automático pelas transações do MS2.
+- **Gastos do limite diário:** calculados pelo MS2 a partir das transações aprovadas e persistidas em seu próprio banco de dados.
+
+Dessa forma, o cálculo do limite diário considera as movimentações registradas no MS2, enquanto a consulta de saldo reflete o valor informado pela MockAPI.
 
 #### Consulta de cotações
 

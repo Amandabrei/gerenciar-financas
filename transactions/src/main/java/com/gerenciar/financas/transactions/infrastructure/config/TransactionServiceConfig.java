@@ -37,8 +37,12 @@ public class TransactionServiceConfig {
 
     @Bean
     public FindAccountBalanceService findAccountBalanceService(
-            AccountFinancialPort accountFinancialPort) {
+            AccountFinancialPort accountFinancialPort,
+            UserValidationPort userValidationPort) {
 
-        return new FindAccountBalanceService(accountFinancialPort);
+        return new FindAccountBalanceService(
+                accountFinancialPort,
+                userValidationPort
+        );
     }
 }

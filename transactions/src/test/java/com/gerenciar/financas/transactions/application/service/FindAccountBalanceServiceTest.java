@@ -1,8 +1,10 @@
 package com.gerenciar.financas.transactions.application.service;
 
+import com.gerenciar.financas.transactions.application.port.out.UserValidationPort;
 import com.gerenciar.financas.transactions.application.port.out.account.AccountFinancialInfo;
 import com.gerenciar.financas.transactions.application.port.out.account.AccountFinancialPort;
 import com.gerenciar.financas.transactions.domain.exception.AccountNotFoundException;
+import com.gerenciar.financas.transactions.domain.exception.UserNotFoundException;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -16,12 +18,18 @@ import static org.mockito.Mockito.*;
 class FindAccountBalanceServiceTest {
 
     private AccountFinancialPort accountFinancialPort;
+    private UserValidationPort userValidationPort;
     private FindAccountBalanceService service;
 
     @BeforeEach
     void setUp() {
         accountFinancialPort = mock(AccountFinancialPort.class);
-        service = new FindAccountBalanceService(accountFinancialPort);
+        userValidationPort = mock(UserValidationPort.class);
+
+        service = new FindAccountBalanceService(
+                accountFinancialPort,
+                userValidationPort
+        );
     }
 
     @Test
@@ -35,19 +43,36 @@ class FindAccountBalanceServiceTest {
                 BigDecimal.ZERO
         );
 
+        when(userValidationPort.userExists(userId)).thenReturn(true);
         when(accountFinancialPort.getAccountFinancialInfo(userId))
                 .thenReturn(financialInfo);
 
         BigDecimal result = service.findBalance(userId);
 
         assertEquals(new BigDecimal("1500.00"), result);
+        verify(userValidationPort).userExists(userId);
         verify(accountFinancialPort).getAccountFinancialInfo(userId);
+    }
+
+    @Test
+    void shouldThrowExceptionWhenUserDoesNotExist() {
+        UUID userId = UUID.randomUUID();
+
+        when(userValidationPort.userExists(userId)).thenReturn(false);
+
+        assertThrows(
+                UserNotFoundException.class,
+                () -> service.findBalance(userId)
+        );
+
+        verify(accountFinancialPort, never()).getAccountFinancialInfo(any());
     }
 
     @Test
     void shouldThrowExceptionWhenAccountDoesNotExist() {
         UUID userId = UUID.randomUUID();
 
+        when(userValidationPort.userExists(userId)).thenReturn(true);
         when(accountFinancialPort.getAccountFinancialInfo(userId))
                 .thenReturn(null);
 
@@ -68,6 +93,7 @@ class FindAccountBalanceServiceTest {
                 BigDecimal.ZERO
         );
 
+        when(userValidationPort.userExists(userId)).thenReturn(true);
         when(accountFinancialPort.getAccountFinancialInfo(userId))
                 .thenReturn(financialInfo);
 
@@ -75,5 +101,15 @@ class FindAccountBalanceServiceTest {
                 AccountNotFoundException.class,
                 () -> service.findBalance(userId)
         );
+    }
+
+    @Test
+    void shouldThrowExceptionWhenUserIdIsNull() {
+        assertThrows(
+                UserNotFoundException.class,
+                () -> service.findBalance(null)
+        );
+
+        verifyNoInteractions(userValidationPort, accountFinancialPort);
     }
 }

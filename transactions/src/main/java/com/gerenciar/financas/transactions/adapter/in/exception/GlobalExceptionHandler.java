@@ -1,5 +1,6 @@
 package com.gerenciar.financas.transactions.adapter.in.exception;
 
+import com.gerenciar.financas.transactions.domain.exception.AccountNotFoundException;
 import com.gerenciar.financas.transactions.domain.exception.InvalidTransactionException;
 import com.gerenciar.financas.transactions.domain.exception.TransactionNotFoundException;
 import com.gerenciar.financas.transactions.domain.exception.UserNotFoundException;
@@ -114,6 +115,17 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(UserNotFoundException.class)
     public ResponseEntity<ApiError> handleUserNotFound(
             UserNotFoundException exception) {
+
+        return buildResponse(
+                HttpStatus.NOT_FOUND,
+                exception.getMessage(),
+                List.of()
+        );
+    }
+
+    @ExceptionHandler(AccountNotFoundException.class)
+    public ResponseEntity<ApiError> handleAccountNotFound(
+            AccountNotFoundException exception) {
 
         return buildResponse(
                 HttpStatus.NOT_FOUND,

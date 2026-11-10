@@ -1,6 +1,7 @@
 package com.gerenciar.financas.user.infrastructure.exception;
 
 import com.gerenciar.financas.user.domain.exception.EmailAlreadyExistsException;
+import com.gerenciar.financas.user.domain.exception.InvalidCredentialsException;
 import com.gerenciar.financas.user.domain.exception.UserNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -69,6 +70,18 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
+                .body(error);
+    }
+
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ResponseEntity<Map<String, String>> handleInvalidCredentials(
+            InvalidCredentialsException exception) {
+
+        Map<String, String> error = new HashMap<>();
+        error.put("message", exception.getMessage());
+
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
                 .body(error);
     }
 }

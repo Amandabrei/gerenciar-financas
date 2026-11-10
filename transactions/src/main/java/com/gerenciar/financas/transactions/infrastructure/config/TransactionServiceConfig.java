@@ -1,10 +1,12 @@
 package com.gerenciar.financas.transactions.infrastructure.config;
 
+import com.gerenciar.financas.transactions.application.port.in.FindTransactionUseCase;
 import com.gerenciar.financas.transactions.application.port.out.TransactionRepositoryPort;
 import com.gerenciar.financas.transactions.application.port.out.UserValidationPort;
 import com.gerenciar.financas.transactions.application.port.out.account.AccountFinancialPort;
 import com.gerenciar.financas.transactions.application.port.out.exchange.ExchangeRatePort;
 import com.gerenciar.financas.transactions.application.service.CreateTransactionService;
+import com.gerenciar.financas.transactions.application.service.ExpenseAnalyticsService;
 import com.gerenciar.financas.transactions.application.service.FindAccountBalanceService;
 import com.gerenciar.financas.transactions.application.service.FindTransactionService;
 
@@ -44,5 +46,12 @@ public class TransactionServiceConfig {
                 accountFinancialPort,
                 userValidationPort
         );
+    }
+
+    @Bean
+    public ExpenseAnalyticsService expenseAnalyticsService(
+            FindTransactionUseCase findTransactionUseCase) {
+
+        return new ExpenseAnalyticsService(findTransactionUseCase);
     }
 }

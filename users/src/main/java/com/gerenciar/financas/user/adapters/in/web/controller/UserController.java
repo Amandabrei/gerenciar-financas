@@ -5,6 +5,7 @@ import com.gerenciar.financas.user.adapters.in.dto.UpdateUserRequest;
 import com.gerenciar.financas.user.adapters.in.dto.UserResponse;
 import com.gerenciar.financas.user.application.port.in.*;
 import com.gerenciar.financas.user.domain.model.User;
+import com.gerenciar.financas.user.adapters.in.dto.AuthenticateUserRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -28,6 +29,7 @@ public class UserController {
     private final UpdateUserUseCase updateUserUseCase;
     private final DeleteUserUseCase deleteUserUseCase;
     private final ImportUsersCsvUseCase importUsersCsvUseCase;
+    private final AuthenticateUserUseCase authenticateUserUseCase;
 
     public UserController(
             CreateUserUseCase createUserUseCase,
@@ -35,7 +37,8 @@ public class UserController {
             FindUserByIdUseCase findUserByIdUseCase,
             UpdateUserUseCase updateUserUseCase,
             DeleteUserUseCase deleteUserUseCase,
-            ImportUsersCsvUseCase importUsersCsvUseCase
+            ImportUsersCsvUseCase importUsersCsvUseCase,
+            AuthenticateUserUseCase authenticateUserUseCase
             ){
 
         this.createUserUseCase = createUserUseCase;
@@ -44,6 +47,7 @@ public class UserController {
         this.updateUserUseCase = updateUserUseCase;
         this.deleteUserUseCase = deleteUserUseCase;
         this.importUsersCsvUseCase = importUsersCsvUseCase;
+        this.authenticateUserUseCase = authenticateUserUseCase;
     }
 
     @Operation(summary = "Listar usuários")
@@ -119,5 +123,18 @@ public class UserController {
         );
 
         return ResponseEntity.ok(result);
+    }
+
+    @Operation(summary = "Autenticar usuário")
+    @PostMapping("/authenticate")
+    public ResponseEntity<UserResponse> authenticate(
+            @Valid @RequestBody AuthenticateUserRequest request) {
+
+        User user = authenticateUserUseCase.authenticate(
+                request.email(),
+                request.password()
+        );
+
+        return ResponseEntity.ok(UserResponse.fromDomain(user));
     }
 }

@@ -1,4 +1,3 @@
-
 package com.gerenciar.financas.transactions.adapter.in.dto;
 
 import jakarta.validation.constraints.Digits;
@@ -8,10 +7,8 @@ import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
-import java.util.UUID;
 
 public record CreateTransactionRequest(
-        @NotNull UUID ownerId,
         @NotNull @Positive @Digits(integer = 17, fraction = 2)
         BigDecimal amount,
         @NotBlank @Size(max = 500)

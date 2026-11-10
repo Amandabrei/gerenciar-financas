@@ -19,3 +19,8 @@ spring:
     properties:
       hibernate:
         format_sql: true
+
+security:
+  service:
+    username: ${USER_SERVICE_CLIENT_USERNAME:}
+    password: ${USER_SERVICE_CLIENT_PASSWORD:}

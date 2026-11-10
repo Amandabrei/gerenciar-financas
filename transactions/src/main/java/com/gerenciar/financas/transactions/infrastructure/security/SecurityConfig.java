@@ -2,8 +2,6 @@ package com.gerenciar.financas.transactions.infrastructure.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -16,7 +14,8 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
-            UserAuthenticationProvider authenticationProvider
+            UserAuthenticationProvider authenticationProvider,
+            ServiceUnavailableAuthenticationEntryPoint entryPoint
     ) throws Exception {
 
         http
@@ -34,7 +33,8 @@ public class SecurityConfig {
                         .requestMatchers("/transactions/**").authenticated()
                         .anyRequest().authenticated()
                 )
-                .httpBasic(Customizer.withDefaults());
+                .httpBasic(basic -> basic
+                        .authenticationEntryPoint(entryPoint));
 
         return http.build();
     }

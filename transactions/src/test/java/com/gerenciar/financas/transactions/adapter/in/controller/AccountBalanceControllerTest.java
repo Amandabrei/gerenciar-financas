@@ -4,6 +4,7 @@ import com.gerenciar.financas.transactions.application.port.in.FindAccountBalanc
 import com.gerenciar.financas.transactions.domain.exception.AccountNotFoundException;
 import com.gerenciar.financas.transactions.infrastructure.security.AuthenticatedUser;
 import com.gerenciar.financas.transactions.infrastructure.security.SecurityConfig;
+import com.gerenciar.financas.transactions.infrastructure.security.ServiceUnavailableAuthenticationEntryPoint;
 import com.gerenciar.financas.transactions.infrastructure.security.UserAuthenticationProvider;
 
 import org.junit.jupiter.api.Test;
@@ -21,6 +22,7 @@ import org.springframework.web.client.ResourceAccessException;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
@@ -30,7 +32,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(AccountBalanceController.class)
-@Import(SecurityConfig.class)
+@Import({
+        SecurityConfig.class,
+        ServiceUnavailableAuthenticationEntryPoint.class
+})
 class AccountBalanceControllerTest {
 
     @Autowired
@@ -41,6 +46,9 @@ class AccountBalanceControllerTest {
 
     @MockitoBean
     private UserAuthenticationProvider userAuthenticationProvider;
+
+    @MockitoBean
+    private ObjectMapper objectMapper;
 
     private final UUID userId = UUID.randomUUID();
     private final UUID otherUserId = UUID.randomUUID();

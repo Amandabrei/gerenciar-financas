@@ -6,17 +6,23 @@ import com.gerenciar.financas.user.adapters.in.dto.UserResponse;
 import com.gerenciar.financas.user.application.port.in.*;
 import com.gerenciar.financas.user.domain.model.User;
 import com.gerenciar.financas.user.adapters.in.dto.AuthenticateUserRequest;
+import com.gerenciar.financas.user.infrastructure.security.AuthenticatedUser;
+
 import jakarta.validation.Valid;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import java.io.IOException;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 @RestController
 @RequestMapping("/users")
@@ -65,7 +71,16 @@ public class UserController {
     @Operation(summary = "Buscar usuários pelo ID")
     @GetMapping("/{id}")
     public ResponseEntity<UserResponse> findUserById(
-            @PathVariable UUID id) {
+            @PathVariable UUID id,
+            Authentication authentication) {
+
+        AuthenticatedUser principal = getAuthenticatedUser(authentication);
+
+        if (!principal.serviceAccount() && !id.equals(principal.id())) {
+            throw new AccessDeniedException(
+                    "Você não tem permissão para consultar este usuário."
+            );
+        }
 
         User user = findUserByIdUseCase.findUserById(id);
 
@@ -92,7 +107,11 @@ public class UserController {
     @PutMapping("/{id}")
     public ResponseEntity<UserResponse> updateUser(
             @PathVariable UUID id,
-            @Valid @RequestBody UpdateUserRequest request) {
+            @Valid @RequestBody UpdateUserRequest request,
+            Authentication authentication) {
+
+        AuthenticatedUser principal = getAuthenticatedUser(authentication);
+        ensureOwnUser(id, principal);
 
         User user = updateUserUseCase.updateUser(
                 id,
@@ -106,7 +125,12 @@ public class UserController {
 
     @Operation(summary = "Excluir usuário")
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteUser(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteUser(
+            @PathVariable UUID id,
+            Authentication authentication) {
+
+        AuthenticatedUser principal = getAuthenticatedUser(authentication);
+        ensureOwnUser(id, principal);
 
         deleteUserUseCase.deleteUser(id);
 
@@ -136,5 +160,32 @@ public class UserController {
         );
 
         return ResponseEntity.ok(UserResponse.fromDomain(user));
+    }
+
+    private AuthenticatedUser getAuthenticatedUser(
+            Authentication authentication) {
+
+        Object principal = authentication.getPrincipal();
+
+        if (!(principal instanceof AuthenticatedUser authenticatedUser)) {
+            throw new AccessDeniedException(
+                    "Usuário autenticado inválido."
+            );
+        }
+
+        return authenticatedUser;
+    }
+
+    private void ensureOwnUser(
+            UUID requestedId,
+            AuthenticatedUser principal) {
+
+        if (principal.serviceAccount()
+                || !requestedId.equals(principal.id())) {
+
+            throw new AccessDeniedException(
+                    "Você não tem permissão para alterar este usuário."
+            );
+        }
     }
 }

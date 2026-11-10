@@ -41,12 +41,7 @@ class TransactionCsvReportGeneratorTest {
                 "Compra recusada"
         );
 
-        String csv = new String(
-                TransactionCsvReportGenerator.generate(
-                        List.of(approved, rejected)
-                ),
-                StandardCharsets.UTF_8
-        );
+        String csv = generate(approved, rejected);
 
         assertTrue(csv.contains("APPROVED"));
         assertTrue(csv.contains("REJECTED"));
@@ -63,10 +58,7 @@ class TransactionCsvReportGeneratorTest {
                 "Compra de \"arroz; feijão\""
         );
 
-        String csv = new String(
-                TransactionCsvReportGenerator.generate(List.of(transaction)),
-                StandardCharsets.UTF_8
-        );
+        String csv = generate(transaction);
 
         assertTrue(csv.contains("\"Compra de \"\"arroz; feijão\"\"\""));
     }
@@ -77,18 +69,83 @@ class TransactionCsvReportGeneratorTest {
                 TransactionStatus.APPROVED, null, null
         );
 
+        String csv = generate(transaction);
+
+        assertTrue(csv.contains("\"\""));
+    }
+
+    @Test
+    void deveFormatarDataEValorParaExcelBrasileiro() {
+        Transaction transaction = transaction(
+                TransactionStatus.APPROVED,
+                null,
+                "Compra mercado"
+        );
+
+        String csv = generate(transaction);
+
+        assertTrue(csv.contains("\"10/11/2026 14:30:00\""));
+        assertTrue(csv.contains("\"125,50\""));
+    }
+
+    @Test
+    void deveNeutralizarFormulaEmCategoriaDescricaoEMotivo() {
+        Transaction transaction = transaction(
+                TransactionStatus.REJECTED,
+                "@SOMA(A1:A2)",
+                "=HYPERLINK(\"https://exemplo.com\")",
+                "+CATEGORIA"
+        );
+
+        String csv = generate(transaction);
+
+        assertTrue(csv.contains("\"'+CATEGORIA\""));
+        assertTrue(csv.contains("\"'=HYPERLINK(\"\"https://exemplo.com\"\")\""));
+        assertTrue(csv.contains("\"'@SOMA(A1:A2)\""));
+    }
+
+    @Test
+    void deveNeutralizarTodosOsCaracteresDeFormula() {
+        List<Transaction> transactions = List.of(
+                transaction(TransactionStatus.APPROVED, null, "=formula"),
+                transaction(TransactionStatus.APPROVED, null, "+formula"),
+                transaction(TransactionStatus.APPROVED, null, "-formula"),
+                transaction(TransactionStatus.APPROVED, null, "@formula")
+        );
+
         String csv = new String(
-                TransactionCsvReportGenerator.generate(List.of(transaction)),
+                TransactionCsvReportGenerator.generate(transactions),
                 StandardCharsets.UTF_8
         );
 
-        assertTrue(csv.contains("\"\""));
+        assertTrue(csv.contains("\"'=formula\""));
+        assertTrue(csv.contains("\"'+formula\""));
+        assertTrue(csv.contains("\"'-formula\""));
+        assertTrue(csv.contains("\"'@formula\""));
+    }
+
+    private String generate(Transaction... transactions) {
+        return new String(
+                TransactionCsvReportGenerator.generate(List.of(transactions)),
+                StandardCharsets.UTF_8
+        );
     }
 
     private Transaction transaction(
             TransactionStatus status,
             String rejectionReason,
             String description
+    ) {
+        return transaction(
+                status, rejectionReason, description, "ALIMENTACAO"
+        );
+    }
+
+    private Transaction transaction(
+            TransactionStatus status,
+            String rejectionReason,
+            String description,
+            String category
     ) {
         return new Transaction(
                 UUID.randomUUID(),
@@ -98,7 +155,7 @@ class TransactionCsvReportGeneratorTest {
                 new BigDecimal("125.50"),
                 LocalDateTime.of(2026, 11, 10, 14, 30),
                 description,
-                "ALIMENTACAO",
+                category,
                 status,
                 rejectionReason,
                 null,

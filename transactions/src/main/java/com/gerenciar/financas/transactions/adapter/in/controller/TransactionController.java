@@ -15,7 +15,6 @@ import com.gerenciar.financas.transactions.domain.model.Transaction;
 import com.gerenciar.financas.transactions.infrastructure.security.AuthenticatedUser;
 
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
 
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
@@ -35,7 +34,6 @@ import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/transactions")
-@Tag(name = "Transações", description = "Gerenciamento de transações financeiras")
 public class TransactionController {
 
     private final CreateTransactionUseCase createTransactionUseCase;
@@ -53,8 +51,15 @@ public class TransactionController {
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Consultar transação por ID",
-            description = "Consulta uma transação pertencente ao usuário autenticado.")
+    @Operation(
+            summary = "Consultar transação por ID",
+            description = """
+                    Consulta os detalhes de uma transação pertencente ao usuário autenticado.
+                    Retorna os dados da movimentação, seu status e as informações de cotação
+                    de USD e EUR, quando disponíveis.
+                    """,
+            tags = {"Transações"}
+    )
     public ResponseEntity<TransactionResponse> findById(
             @PathVariable UUID id,
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser) {
@@ -69,8 +74,15 @@ public class TransactionController {
     }
 
     @GetMapping
-    @Operation(summary = "Listar transações",
-            description = "Lista as transações do usuário autenticado com filtros opcionais.")
+    @Operation(
+            summary = "Listar transações",
+            description = """
+                    Lista o histórico de transações do usuário autenticado.
+                    Permite aplicar filtros opcionais por data inicial, data final
+                    e tipo de transação.
+                    """,
+            tags = {"Transações"}
+    )
     public List<TransactionResponse> findAllByOwnerId(
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
             @RequestParam(required = false)
@@ -90,8 +102,12 @@ public class TransactionController {
 
     @GetMapping(value = "/report", produces = "text/csv")
     @Operation(
-            summary = "Exportar relatório de transações",
-            description = "Exporta as transações do usuário autenticado em CSV, incluindo aprovadas e rejeitadas."
+            summary = "Exportar relatório de transações em CSV",
+            description = """
+                    Exporta as transações do usuário autenticado em formato CSV,
+                    incluindo movimentações aprovadas e rejeitadas dentro do período informado.
+                    """,
+            tags = {"Relatórios"}
     )
     public ResponseEntity<byte[]> exportReport(
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
@@ -128,8 +144,14 @@ public class TransactionController {
     }
 
     @PostMapping("/deposits")
-    @Operation(summary = "Registrar depósito",
-            description = "Registra um depósito na conta do usuário autenticado.")
+    @Operation(
+            summary = "Registrar depósito",
+            description = """
+                    Registra um depósito na conta do usuário autenticado.
+                    O depósito não exige validação de saldo disponível na API de contas.
+                    """,
+            tags = {"Registro de transações"}
+    )
     public ResponseEntity<TransactionResponse> createDeposit(
             @Valid @RequestBody CreateTransactionRequest request,
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser) {
@@ -144,8 +166,14 @@ public class TransactionController {
     }
 
     @PostMapping("/withdrawal")
-    @Operation(summary = "Registrar saque",
-            description = "Registra um saque na conta do usuário autenticado.")
+    @Operation(
+            summary = "Registrar saque",
+            description = """
+                    Registra um saque na conta do usuário autenticado.
+                    A operação está sujeita à validação de saldo e limites da conta.
+                    """,
+            tags = {"Registro de transações"}
+    )
     public ResponseEntity<TransactionResponse> createWithdrawal(
             @Valid @RequestBody CreateTransactionRequest request,
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser) {
@@ -160,8 +188,14 @@ public class TransactionController {
     }
 
     @PostMapping("/transfers")
-    @Operation(summary = "Registrar transferência",
-            description = "Registra uma transferência entre usuários.")
+    @Operation(
+            summary = "Registrar transferência",
+            description = """
+                    Registra uma transferência do usuário autenticado para outro usuário.
+                    A operação está sujeita às validações de saldo e limites da conta.
+                    """,
+            tags = {"Registro de transações"}
+    )
     public ResponseEntity<TransactionResponse> createTransfer(
             @Valid @RequestBody CreateTransferRequest request,
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser) {
@@ -177,8 +211,15 @@ public class TransactionController {
     }
 
     @PostMapping("/purchase")
-    @Operation(summary = "Registrar compra",
-            description = "Registra uma compra com sua respectiva categoria.")
+    @Operation(
+            summary = "Registrar compra",
+            description = """
+                    Registra uma compra para o usuário autenticado,
+                    informando o valor, a descrição e a categoria da despesa.
+                    A operação está sujeita às validações de saldo e limites da conta.
+                    """,
+            tags = {"Registro de transações"}
+    )
     public ResponseEntity<TransactionResponse> createPurchase(
             @Valid @RequestBody CreatePurchaseRequest request,
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser) {
@@ -196,7 +237,11 @@ public class TransactionController {
     @GetMapping("/analytics/category")
     @Operation(
             summary = "Analisar despesas por categoria",
-            description = "Retorna o total de cada categoria e o total geral."
+            description = """
+                    Retorna as despesas aprovadas agrupadas por categoria,
+                    incluindo o total geral do período.
+                    """,
+            tags = {"Análise de despesas"}
     )
     public ExpenseAnalytics.CategorySummary analyzeByCategory(
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
@@ -215,7 +260,11 @@ public class TransactionController {
     @GetMapping("/analytics/day")
     @Operation(
             summary = "Analisar despesas por dia",
-            description = "Retorna o total de despesas aprovadas em cada dia."
+            description = """
+                    Retorna o total de despesas aprovadas agrupadas por dia,
+                    considerando o período informado.
+                    """,
+            tags = {"Análise de despesas"}
     )
     public List<ExpenseAnalytics.DailyExpense> analyzeByDay(
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
@@ -234,7 +283,11 @@ public class TransactionController {
     @GetMapping("/analytics/month")
     @Operation(
             summary = "Analisar despesas por mês",
-            description = "Retorna o total de despesas aprovadas em cada mês."
+            description = """
+                    Retorna o total de despesas aprovadas agrupadas por mês,
+                    considerando o período informado.
+                    """,
+            tags = {"Análise de despesas"}
     )
     public List<ExpenseAnalytics.MonthlyExpense> analyzeByMonth(
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,

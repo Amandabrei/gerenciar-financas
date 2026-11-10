@@ -7,8 +7,8 @@ import org.springframework.security.authentication.AuthenticationServiceExceptio
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -23,9 +23,14 @@ public class UserAuthenticationProvider implements AuthenticationProvider {
     private final RestClient restClient;
 
     public UserAuthenticationProvider(
-            @Value("${services.user.base-url}") String userServiceUrl) {
-        this.restClient = RestClient.builder()
+            RestClient.Builder restClientBuilder,
+            @Value("${services.user.base-url}") String userServiceUrl,
+            @Value("${services.user.client-username}") String username,
+            @Value("${services.user.client-password}") String password) {
+
+        this.restClient = restClientBuilder
                 .baseUrl(userServiceUrl)
+                .defaultHeaders(headers -> headers.setBasicAuth(username, password))
                 .build();
     }
 

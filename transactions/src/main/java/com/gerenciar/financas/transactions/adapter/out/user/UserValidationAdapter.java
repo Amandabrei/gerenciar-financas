@@ -16,24 +16,25 @@ public class UserValidationAdapter implements UserValidationPort {
 
     public UserValidationAdapter(
             RestClient.Builder restClientBuilder,
-            @Value("${services.user.base-url}") String userServiceBaseUrl) {
+            @Value("${services.user.base-url}") String userServiceBaseUrl,
+            @Value("${services.user.client-username}") String username,
+            @Value("${services.user.client-password}") String password) {
 
         this.restClient = restClientBuilder
                 .baseUrl(userServiceBaseUrl)
+                .defaultHeaders(headers -> headers.setBasicAuth(username, password))
                 .build();
     }
 
     @Override
     public boolean userExists(UUID userId) {
-
         try {
             UserResponse response = restClient.get()
                     .uri("/users/{id}", userId)
                     .retrieve()
                     .body(UserResponse.class);
 
-            return response != null
-                    && userId.equals(response.getId());
+            return response != null && userId.equals(response.getId());
 
         } catch (RestClientResponseException exception) {
             if (exception.getStatusCode().value() == 404) {

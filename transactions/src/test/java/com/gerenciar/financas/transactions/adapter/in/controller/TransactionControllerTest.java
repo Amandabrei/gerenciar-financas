@@ -1,5 +1,7 @@
 package com.gerenciar.financas.transactions.adapter.in.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gerenciar.financas.transactions.application.model.ExpenseAnalytics;
 import com.gerenciar.financas.transactions.application.port.in.CreateTransactionUseCase;
 import com.gerenciar.financas.transactions.application.port.in.ExpenseAnalyticsUseCase;
 import com.gerenciar.financas.transactions.application.port.in.FindTransactionUseCase;
@@ -8,6 +10,7 @@ import com.gerenciar.financas.transactions.domain.enums.TransactionType;
 import com.gerenciar.financas.transactions.domain.model.Transaction;
 import com.gerenciar.financas.transactions.infrastructure.security.AuthenticatedUser;
 import com.gerenciar.financas.transactions.infrastructure.security.SecurityConfig;
+import com.gerenciar.financas.transactions.infrastructure.security.ServiceUnavailableAuthenticationEntryPoint;
 import com.gerenciar.financas.transactions.infrastructure.security.UserAuthenticationProvider;
 
 import org.junit.jupiter.api.Test;
@@ -17,7 +20,6 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
@@ -34,16 +36,28 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(TransactionController.class)
-@Import(SecurityConfig.class)
+@Import({
+        SecurityConfig.class,
+        ServiceUnavailableAuthenticationEntryPoint.class
+})
 class TransactionControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    /*
+     * O WebMvcTest não está disponibilizando o ObjectMapper
+     * exigido pelo ServiceUnavailableAuthenticationEntryPoint.
+     * O mock permite carregar o contexto deste teste de controller.
+     */
+    @MockitoBean
+    private ObjectMapper objectMapper;
 
     @MockitoBean
     private CreateTransactionUseCase createTransactionUseCase;
@@ -106,6 +120,40 @@ class TransactionControllerTest {
         );
     }
 
+    private ExpenseAnalytics expenseAnalytics() {
+        return new ExpenseAnalytics(
+                new ExpenseAnalytics.CategorySummary(
+                        List.of(
+                                new ExpenseAnalytics.CategoryExpense(
+                                        "ALIMENTACAO",
+                                        new BigDecimal("150.00")
+                                ),
+                                new ExpenseAnalytics.CategoryExpense(
+                                        "MORADIA",
+                                        new BigDecimal("200.00")
+                                )
+                        ),
+                        new BigDecimal("350.00")
+                ),
+                List.of(
+                        new ExpenseAnalytics.DailyExpense(
+                                LocalDate.of(2026, 11, 5),
+                                new BigDecimal("150.00")
+                        ),
+                        new ExpenseAnalytics.DailyExpense(
+                                LocalDate.of(2026, 11, 6),
+                                new BigDecimal("200.00")
+                        )
+                ),
+                List.of(
+                        new ExpenseAnalytics.MonthlyExpense(
+                                "2026-11",
+                                new BigDecimal("350.00")
+                        )
+                )
+        );
+    }
+
     @Test
     void deveRetornar401QuandoUsuarioNaoEstiverAutenticado() throws Exception {
         mockMvc.perform(get("/transactions"))
@@ -162,7 +210,6 @@ class TransactionControllerTest {
         verify(findTransactionUseCase)
                 .findAllByOwnerId(ownerId, null, null, null);
     }
-
 
     @Test
     void deveRetornar401QuandoUsuarioNaoEstiverAutenticadoAoExportarRelatorio()
@@ -268,7 +315,6 @@ class TransactionControllerTest {
                         any()
                 );
     }
-
 
     @Test
     void deveCriarDepositoComStatus201ELocation() throws Exception {
@@ -454,5 +500,155 @@ class TransactionControllerTest {
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.message")
                         .value("Parâmetro inválido: id."));
+    }
+
+    @Test
+    void deveAnalisarDespesasPorCategoriaDoUsuarioAutenticado() throws Exception {
+        LocalDate startDate = LocalDate.of(2026, 11, 1);
+        LocalDate endDate = LocalDate.of(2026, 11, 30);
+
+        given(expenseAnalyticsUseCase.analyze(ownerId, startDate, endDate))
+                .willReturn(expenseAnalytics());
+
+        mockMvc.perform(get("/transactions/analytics/category")
+                        .with(authenticatedAs(ownerId))
+                        .param("startDate", startDate.toString())
+                        .param("endDate", endDate.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(350.00))
+                .andExpect(jsonPath("$.categories.length()").value(2))
+                .andExpect(jsonPath("$.categories[0].category").value("ALIMENTACAO"))
+                .andExpect(jsonPath("$.categories[0].total").value(150.00))
+                .andExpect(jsonPath("$.categories[1].category").value("MORADIA"))
+                .andExpect(jsonPath("$.categories[1].total").value(200.00));
+
+        verify(expenseAnalyticsUseCase).analyze(ownerId, startDate, endDate);
+    }
+
+    @Test
+    void deveAnalisarDespesasPorDiaDoUsuarioAutenticado() throws Exception {
+        LocalDate startDate = LocalDate.of(2026, 11, 1);
+        LocalDate endDate = LocalDate.of(2026, 11, 30);
+
+        given(expenseAnalyticsUseCase.analyze(ownerId, startDate, endDate))
+                .willReturn(expenseAnalytics());
+
+        mockMvc.perform(get("/transactions/analytics/day")
+                        .with(authenticatedAs(ownerId))
+                        .param("startDate", startDate.toString())
+                        .param("endDate", endDate.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].date").value("2026-11-05"))
+                .andExpect(jsonPath("$[0].total").value(150.00))
+                .andExpect(jsonPath("$[1].date").value("2026-11-06"))
+                .andExpect(jsonPath("$[1].total").value(200.00));
+
+        verify(expenseAnalyticsUseCase).analyze(ownerId, startDate, endDate);
+    }
+
+    @Test
+    void deveAnalisarDespesasPorMesDoUsuarioAutenticado() throws Exception {
+        LocalDate startDate = LocalDate.of(2026, 11, 1);
+        LocalDate endDate = LocalDate.of(2026, 11, 30);
+
+        given(expenseAnalyticsUseCase.analyze(ownerId, startDate, endDate))
+                .willReturn(expenseAnalytics());
+
+        mockMvc.perform(get("/transactions/analytics/month")
+                        .with(authenticatedAs(ownerId))
+                        .param("startDate", startDate.toString())
+                        .param("endDate", endDate.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].month").value("2026-11"))
+                .andExpect(jsonPath("$[0].total").value(350.00));
+
+        verify(expenseAnalyticsUseCase).analyze(ownerId, startDate, endDate);
+    }
+
+    @Test
+    void deveRetornar401NasRotasDeAnaliseQuandoUsuarioNaoEstiverAutenticado()
+            throws Exception {
+
+        mockMvc.perform(get("/transactions/analytics/category"))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(get("/transactions/analytics/day"))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(get("/transactions/analytics/month"))
+                .andExpect(status().isUnauthorized());
+
+        verifyNoInteractions(expenseAnalyticsUseCase);
+    }
+
+    @Test
+    void deveRetornar400NaAnaliseQuandoInformarSomenteUmaData()
+            throws Exception {
+
+        given(expenseAnalyticsUseCase.analyze(
+                any(UUID.class),
+                nullable(LocalDate.class),
+                nullable(LocalDate.class)
+        )).willThrow(new IllegalArgumentException(
+                "Informe as duas datas: startDate e endDate."
+        ));
+
+        mockMvc.perform(get("/transactions/analytics/category")
+                        .with(authenticatedAs(ownerId))
+                        .param("startDate", "2026-11-01"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400));
+
+        mockMvc.perform(get("/transactions/analytics/day")
+                        .with(authenticatedAs(ownerId))
+                        .param("endDate", "2026-11-30"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400));
+
+        mockMvc.perform(get("/transactions/analytics/month")
+                        .with(authenticatedAs(ownerId))
+                        .param("startDate", "2026-11-01"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400));
+
+        verify(expenseAnalyticsUseCase, org.mockito.Mockito.times(3))
+                .analyze(eq(ownerId), any(), any());
+    }
+
+    @Test
+    void deveRetornar400QuandoParametroObrigatorioEstiverAusente()
+            throws Exception {
+
+        mockMvc.perform(get("/transactions/report")
+                        .with(authenticatedAs(ownerId))
+                        .param("startDate", "2026-11-01"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.message")
+                        .value("Parâmetro obrigatório ausente: endDate."));
+    }
+
+    @Test
+    void deveRetornar405QuandoMetodoHttpNaoForPermitido()
+            throws Exception {
+
+        mockMvc.perform(post("/transactions")
+                        .with(authenticatedAs(ownerId)))
+                .andExpect(status().isMethodNotAllowed())
+                .andExpect(jsonPath("$.status").value(405));
+    }
+
+    @Test
+    void deveRetornar404QuandoEndpointNaoExistir()
+            throws Exception {
+
+        mockMvc.perform(get("/transactions/rota-inexistente/recurso")
+                        .with(authenticatedAs(ownerId)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.message")
+                        .value("Endpoint não encontrado."));
     }
 }

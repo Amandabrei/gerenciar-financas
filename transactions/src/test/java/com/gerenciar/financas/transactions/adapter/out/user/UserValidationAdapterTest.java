@@ -31,7 +31,9 @@ class UserValidationAdapterTest {
 
         adapter = new UserValidationAdapter(
                 builder,
-                "http://localhost:8082"
+                "http://localhost:8082",
+                "ms2-service-test",
+                "SenhaServicoTeste123!"
         );
     }
 

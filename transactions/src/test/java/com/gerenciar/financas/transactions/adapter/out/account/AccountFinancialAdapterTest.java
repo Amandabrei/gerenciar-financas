@@ -15,6 +15,7 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
@@ -52,7 +53,8 @@ class AccountFinancialAdapterTest {
                                 "balance": 1500.00,
                                 "dailyLimit": 5000.00,
                                 "transactionLimit": 2000.00,
-                                "dailySpent": 300.00
+                                "dailySpent": 300.00,
+                                "id": "6"
                             }
                         ]
                         """.formatted(userId),
@@ -63,22 +65,10 @@ class AccountFinancialAdapterTest {
                 adapter.getAccountFinancialInfo(userId);
 
         assertNotNull(result);
-        assertEquals(
-                0,
-                new BigDecimal("1500.00").compareTo(result.balance())
-        );
-        assertEquals(
-                0,
-                new BigDecimal("5000.00").compareTo(result.dailyLimit())
-        );
-        assertEquals(
-                0,
-                new BigDecimal("2000.00").compareTo(result.transactionLimit())
-        );
-        assertEquals(
-                0,
-                new BigDecimal("300.00").compareTo(result.dailySpent())
-        );
+        assertEquals(0, new BigDecimal("1500.00").compareTo(result.balance()));
+        assertEquals(0, new BigDecimal("5000.00").compareTo(result.dailyLimit()));
+        assertEquals(0, new BigDecimal("2000.00").compareTo(result.transactionLimit()));
+        assertEquals(0, new BigDecimal("300.00").compareTo(result.dailySpent()));
 
         server.verify();
     }
@@ -132,6 +122,100 @@ class AccountFinancialAdapterTest {
         assertThrows(
                 RestClientResponseException.class,
                 () -> adapter.getAccountFinancialInfo(userId)
+        );
+
+        server.verify();
+    }
+
+    @Test
+    void shouldUpdateAccountBalance() {
+        UUID userId = UUID.randomUUID();
+
+        server.expect(requestTo(
+                        "http://localhost/accounts?userId=" + userId))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(
+                        """
+                        [
+                            {
+                                "userId": "%s",
+                                "balance": 1500.00,
+                                "dailyLimit": 5000.00,
+                                "transactionLimit": 2000.00,
+                                "dailySpent": 300.00,
+                                "id": "6"
+                            }
+                        ]
+                        """.formatted(userId),
+                        MediaType.APPLICATION_JSON
+                ));
+
+        server.expect(requestTo("http://localhost/accounts/6"))
+                .andExpect(method(HttpMethod.PATCH))
+                .andExpect(content().json("""
+                        {
+                            "balance": 1750.00
+                        }
+                        """))
+                .andRespond(withSuccess());
+
+        assertDoesNotThrow(() ->
+                adapter.updateBalance(userId, new BigDecimal("1750.00"))
+        );
+
+        server.verify();
+    }
+
+    @Test
+    void shouldThrowExceptionWhenUpdatingBalanceForMissingAccount() {
+        UUID userId = UUID.randomUUID();
+
+        server.expect(requestTo(
+                        "http://localhost/accounts?userId=" + userId))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(
+                        "[]",
+                        MediaType.APPLICATION_JSON
+                ));
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> adapter.updateBalance(userId, new BigDecimal("1750.00"))
+        );
+
+        server.verify();
+    }
+
+    @Test
+    void shouldPropagateExceptionWhenBalanceUpdateFails() {
+        UUID userId = UUID.randomUUID();
+
+        server.expect(requestTo(
+                        "http://localhost/accounts?userId=" + userId))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(
+                        """
+                        [
+                            {
+                                "userId": "%s",
+                                "balance": 1500.00,
+                                "dailyLimit": 5000.00,
+                                "transactionLimit": 2000.00,
+                                "dailySpent": 300.00,
+                                "id": "6"
+                            }
+                        ]
+                        """.formatted(userId),
+                        MediaType.APPLICATION_JSON
+                ));
+
+        server.expect(requestTo("http://localhost/accounts/6"))
+                .andExpect(method(HttpMethod.PATCH))
+                .andRespond(withStatus(HttpStatus.SERVICE_UNAVAILABLE));
+
+        assertThrows(
+                RestClientResponseException.class,
+                () -> adapter.updateBalance(userId, new BigDecimal("1750.00"))
         );
 
         server.verify();

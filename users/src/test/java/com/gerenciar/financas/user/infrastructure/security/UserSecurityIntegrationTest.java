@@ -1,7 +1,7 @@
 package com.gerenciar.financas.user.infrastructure.security;
 
 import com.gerenciar.financas.user.application.port.in.CreateUserUseCase;
-import com.gerenciar.financas.user.domain.model.User;
+import com.gerenciar.financas.user.core.model.User;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +16,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.UUID;
 
+import org.springframework.mock.web.MockMultipartFile;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -178,6 +179,65 @@ class UserSecurityIntegrationTest {
                             }
                             """.formatted(UUID.randomUUID())))
                 .andExpect(status().isCreated());
+    }
+
+    @Test
+    void deveNegarImportacaoCsvParaUsuarioComum() throws Exception {
+
+        User user = createUser();
+
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "usuarios.csv",
+                "text/csv",
+                "name,email,password\nPedro,pedro.csv@email.com,Senha123"
+                        .getBytes(StandardCharsets.UTF_8)
+        );
+
+        mockMvc.perform(multipart("/users/import")
+                        .file(file)
+                        .header(HttpHeaders.AUTHORIZATION,
+                                basicAuth(user.getEmail(), USER_PASSWORD)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void devePermitirImportacaoCsvParaContaDeServico()
+            throws Exception {
+
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "usuarios.csv",
+                "text/csv",
+                "name,email,password\nMaria,maria.csv@email.com,Senha123"
+                        .getBytes(StandardCharsets.UTF_8)
+        );
+
+        mockMvc.perform(multipart("/users/import")
+                        .file(file)
+                        .header(HttpHeaders.AUTHORIZATION,
+                                basicAuth("ms2-service-test",
+                                        "SenhaServico123!")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.successCount").value(1))
+                .andExpect(jsonPath("$.failureCount").value(0));
+    }
+
+    @Test
+    void deveRetornar401QuandoNaoAutenticadoTentarImportarCsv()
+            throws Exception {
+
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "usuarios.csv",
+                "text/csv",
+                "name,email,password\nJoao,joao.csv@email.com,Senha123"
+                        .getBytes(StandardCharsets.UTF_8)
+        );
+
+        mockMvc.perform(multipart("/users/import")
+                        .file(file))
+                .andExpect(status().isUnauthorized());
     }
 
     private User createUser() {

@@ -1,7 +1,7 @@
 package com.gerenciar.financas.transactions.adapter.out.persistence.entity;
 
-import com.gerenciar.financas.transactions.domain.enums.TransactionStatus;
-import com.gerenciar.financas.transactions.domain.enums.TransactionType;
+import com.gerenciar.financas.transactions.core.enums.TransactionStatus;
+import com.gerenciar.financas.transactions.core.enums.TransactionType;
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;

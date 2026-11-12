@@ -1,6 +1,6 @@
 package com.gerenciar.financas.transactions.adapter.in.report;
 
-import com.gerenciar.financas.transactions.domain.model.Transaction;
+import com.gerenciar.financas.transactions.core.model.Transaction;
 
 import java.nio.charset.StandardCharsets;
 import java.time.format.DateTimeFormatter;

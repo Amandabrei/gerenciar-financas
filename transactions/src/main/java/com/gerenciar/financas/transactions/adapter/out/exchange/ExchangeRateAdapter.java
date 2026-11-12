@@ -29,18 +29,7 @@ public class ExchangeRateAdapter implements ExchangeRatePort {
     @Autowired
     public ExchangeRateAdapter(
             RestClient.Builder restClientBuilder,
-            @Value("${services.exchange.base-url}") String exchangeBaseUrl) {
-
-        this(
-                restClientBuilder,
-                exchangeBaseUrl,
-                Clock.systemDefaultZone()
-        );
-    }
-
-    ExchangeRateAdapter(
-            RestClient.Builder restClientBuilder,
-            String exchangeBaseUrl,
+            @Value("${services.exchange.base-url}") String exchangeBaseUrl,
             Clock clock) {
 
         this.restClient = restClientBuilder

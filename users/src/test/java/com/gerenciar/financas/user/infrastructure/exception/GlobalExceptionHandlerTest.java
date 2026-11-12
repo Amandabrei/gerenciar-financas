@@ -1,7 +1,7 @@
 package com.gerenciar.financas.user.infrastructure.exception;
 
-import com.gerenciar.financas.user.domain.exception.EmailAlreadyExistsException;
-import com.gerenciar.financas.user.domain.exception.UserNotFoundException;
+import com.gerenciar.financas.user.core.exception.EmailAlreadyExistsException;
+import com.gerenciar.financas.user.core.exception.UserNotFoundException;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;

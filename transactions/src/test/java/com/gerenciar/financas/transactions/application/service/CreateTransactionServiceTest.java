@@ -5,15 +5,19 @@ import com.gerenciar.financas.transactions.application.port.out.UserValidationPo
 import com.gerenciar.financas.transactions.application.port.out.account.AccountFinancialInfo;
 import com.gerenciar.financas.transactions.application.port.out.account.AccountFinancialPort;
 import com.gerenciar.financas.transactions.application.port.out.exchange.ExchangeRatePort;
-import com.gerenciar.financas.transactions.domain.enums.TransactionStatus;
-import com.gerenciar.financas.transactions.domain.enums.TransactionType;
-import com.gerenciar.financas.transactions.domain.exception.InvalidTransactionException;
-import com.gerenciar.financas.transactions.domain.exception.UserNotFoundException;
-import com.gerenciar.financas.transactions.domain.model.Transaction;
+import com.gerenciar.financas.transactions.core.enums.TransactionStatus;
+import com.gerenciar.financas.transactions.core.enums.TransactionType;
+import com.gerenciar.financas.transactions.core.exception.InvalidTransactionException;
+import com.gerenciar.financas.transactions.core.exception.UserNotFoundException;
+import com.gerenciar.financas.transactions.core.model.Transaction;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
 
@@ -26,6 +30,7 @@ class CreateTransactionServiceTest {
     private UserValidationPort userValidationPort;
     private AccountFinancialPort accountFinancialPort;
     private ExchangeRatePort exchangeRatePort;
+    private Clock clock;
 
     private CreateTransactionService service;
 
@@ -36,11 +41,17 @@ class CreateTransactionServiceTest {
         accountFinancialPort = mock(AccountFinancialPort.class);
         exchangeRatePort = mock(ExchangeRatePort.class);
 
+        clock = Clock.fixed(
+                Instant.parse("2026-11-13T02:30:00Z"),
+                ZoneId.of("America/Sao_Paulo")
+        );
+
         service = new CreateTransactionService(
                 transactionRepositoryPort,
                 userValidationPort,
                 accountFinancialPort,
-                exchangeRatePort
+                exchangeRatePort,
+                clock
         );
     }
 
@@ -444,7 +455,7 @@ class CreateTransactionServiceTest {
                 null,
                 TransactionType.WITHDRAWAL,
                 new BigDecimal("150.00"),
-                java.time.LocalDateTime.now(),
+                java.time.LocalDateTime.now(clock),
                 "Saque anterior",
                 "WITHDRAWAL",
                 TransactionStatus.APPROVED,
@@ -492,7 +503,7 @@ class CreateTransactionServiceTest {
                 null,
                 TransactionType.WITHDRAWAL,
                 new BigDecimal("250.00"),
-                java.time.LocalDateTime.now(),
+                java.time.LocalDateTime.now(clock),
                 "Saque anterior",
                 "WITHDRAWAL",
                 TransactionStatus.APPROVED,
@@ -545,7 +556,7 @@ class CreateTransactionServiceTest {
                 null,
                 TransactionType.WITHDRAWAL,
                 new BigDecimal("250.00"),
-                java.time.LocalDateTime.now(),
+                java.time.LocalDateTime.now(clock),
                 "Saque rejeitado",
                 "WITHDRAWAL",
                 TransactionStatus.REJECTED,
@@ -593,7 +604,7 @@ class CreateTransactionServiceTest {
                 null,
                 TransactionType.DEPOSIT,
                 new BigDecimal("250.00"),
-                java.time.LocalDateTime.now(),
+                java.time.LocalDateTime.now(clock),
                 "Depósito anterior",
                 "DEPOSIT",
                 TransactionStatus.APPROVED,
@@ -643,7 +654,7 @@ class CreateTransactionServiceTest {
                 previousDestinationUserId,
                 TransactionType.TRANSFER,
                 new BigDecimal("150.00"),
-                java.time.LocalDateTime.now(),
+                java.time.LocalDateTime.now(clock),
                 "Transferência anterior",
                 "TRANSFER",
                 TransactionStatus.APPROVED,
@@ -708,7 +719,7 @@ class CreateTransactionServiceTest {
                 null,
                 TransactionType.PURCHASE,
                 new BigDecimal("150.00"),
-                java.time.LocalDateTime.now(),
+                java.time.LocalDateTime.now(clock),
                 "Compra anterior",
                 "ALIMENTACAO",
                 TransactionStatus.APPROVED,
@@ -962,6 +973,64 @@ class CreateTransactionServiceTest {
         verify(accountFinancialPort).updateBalance(
                 sourceUserId, sourcePreviousBalance
         );
+
+        verify(transactionRepositoryPort).save(any(Transaction.class));
+    }
+
+
+    @Test
+    void shouldUseSaoPauloDateWhenCalculatingDailyLimit() {
+        UUID ownerId = UUID.randomUUID();
+
+        Transaction previousWithdrawal = new Transaction(
+                UUID.randomUUID(),
+                ownerId,
+                null,
+                TransactionType.WITHDRAWAL,
+                new BigDecimal("250.00"),
+                LocalDateTime.of(2026, 11, 12, 10, 0),
+                "Saque anterior",
+                "WITHDRAWAL",
+                TransactionStatus.APPROVED,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        when(userValidationPort.userExists(ownerId)).thenReturn(true);
+
+        when(transactionRepositoryPort.findAllByOwnerId(ownerId))
+                .thenReturn(List.of(previousWithdrawal));
+
+        when(accountFinancialPort.getAccountFinancialInfo(ownerId))
+                .thenReturn(new AccountFinancialInfo(
+                        new BigDecimal("1000.00"),
+                        new BigDecimal("300.00"),
+                        new BigDecimal("500.00"),
+                        new BigDecimal("100.00")
+                ));
+
+        when(transactionRepositoryPort.save(any(Transaction.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        Transaction result = service.createWithdrawal(
+                ownerId,
+                new BigDecimal("100.00"),
+                "Novo saque"
+        );
+
+        assertEquals(TransactionStatus.REJECTED, result.getStatus());
+
+        assertEquals(
+                "O limite diário foi ultrapassado.",
+                result.getRejectionReason()
+        );
+
+        verify(accountFinancialPort, never())
+                .updateBalance(any(UUID.class), any(BigDecimal.class));
 
         verify(transactionRepositoryPort).save(any(Transaction.class));
     }

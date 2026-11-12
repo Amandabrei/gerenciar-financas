@@ -1,14 +1,14 @@
-package com.gerenciar.financas.transactions.domain.service;
+package com.gerenciar.financas.transactions.core.service;
 
-import com.gerenciar.financas.transactions.domain.enums.TransactionStatus;
-import com.gerenciar.financas.transactions.domain.enums.TransactionType;
-import com.gerenciar.financas.transactions.domain.exception.InvalidTransactionException;
-import com.gerenciar.financas.transactions.domain.model.Transaction;
+import com.gerenciar.financas.transactions.core.enums.TransactionStatus;
+import com.gerenciar.financas.transactions.core.enums.TransactionType;
+import com.gerenciar.financas.transactions.core.exception.InvalidTransactionException;
+import com.gerenciar.financas.transactions.core.model.Transaction;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-public class TransactionCompensationService {
+public class TransactionCompensationService { //nao esta sendo usada mas vou deixar
 
     public Transaction createCompensation(
             Transaction original,

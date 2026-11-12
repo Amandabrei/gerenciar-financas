@@ -13,6 +13,8 @@ import com.gerenciar.financas.transactions.application.service.FindTransactionSe
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.time.Clock;
+
 @Configuration
 public class TransactionServiceConfig {
 
@@ -21,13 +23,14 @@ public class TransactionServiceConfig {
             TransactionRepositoryPort transactionRepositoryPort,
             UserValidationPort userValidationPort,
             AccountFinancialPort accountFinancialPort,
-            ExchangeRatePort exchangeRatePort) {
-
+            ExchangeRatePort exchangeRatePort,
+            Clock clock) {
         return new CreateTransactionService(
                 transactionRepositoryPort,
                 userValidationPort,
                 accountFinancialPort,
-                exchangeRatePort
+                exchangeRatePort,
+                clock
         );
     }
 
@@ -50,8 +53,9 @@ public class TransactionServiceConfig {
 
     @Bean
     public ExpenseAnalyticsService expenseAnalyticsService(
-            FindTransactionUseCase findTransactionUseCase) {
-
-        return new ExpenseAnalyticsService(findTransactionUseCase);
+            FindTransactionUseCase findTransactionUseCase,
+            Clock clock) {
+        return new ExpenseAnalyticsService(findTransactionUseCase, clock);
     }
+
 }

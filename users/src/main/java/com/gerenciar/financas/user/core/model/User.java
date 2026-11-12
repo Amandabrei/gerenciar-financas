@@ -1,4 +1,4 @@
-package com.gerenciar.financas.user.domain.model;
+package com.gerenciar.financas.user.core.model;
 
 import java.util.UUID;
 

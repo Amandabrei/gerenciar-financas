@@ -1,7 +1,7 @@
-package com.gerenciar.financas.transactions.domain.model;
+package com.gerenciar.financas.transactions.core.model;
 
-import com.gerenciar.financas.transactions.domain.enums.TransactionStatus;
-import com.gerenciar.financas.transactions.domain.enums.TransactionType;
+import com.gerenciar.financas.transactions.core.enums.TransactionStatus;
+import com.gerenciar.financas.transactions.core.enums.TransactionType;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;

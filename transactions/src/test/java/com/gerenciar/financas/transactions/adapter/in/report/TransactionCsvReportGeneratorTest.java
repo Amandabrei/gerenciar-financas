@@ -1,8 +1,8 @@
 package com.gerenciar.financas.transactions.adapter.in.report;
 
-import com.gerenciar.financas.transactions.domain.enums.TransactionStatus;
-import com.gerenciar.financas.transactions.domain.enums.TransactionType;
-import com.gerenciar.financas.transactions.domain.model.Transaction;
+import com.gerenciar.financas.transactions.core.enums.TransactionStatus;
+import com.gerenciar.financas.transactions.core.enums.TransactionType;
+import com.gerenciar.financas.transactions.core.model.Transaction;
 
 import org.junit.jupiter.api.Test;
 

@@ -3,13 +3,13 @@ package com.gerenciar.financas.transactions.application.service;
 import com.gerenciar.financas.transactions.application.model.ExpenseAnalytics;
 import com.gerenciar.financas.transactions.application.port.in.ExpenseAnalyticsUseCase;
 import com.gerenciar.financas.transactions.application.port.in.FindTransactionUseCase;
-import com.gerenciar.financas.transactions.domain.enums.TransactionStatus;
-import com.gerenciar.financas.transactions.domain.enums.TransactionType;
-import com.gerenciar.financas.transactions.domain.model.Transaction;
+import com.gerenciar.financas.transactions.core.enums.TransactionStatus;
+import com.gerenciar.financas.transactions.core.enums.TransactionType;
+import com.gerenciar.financas.transactions.core.model.Transaction;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.List;
 import java.util.Map;
@@ -21,10 +21,13 @@ public class ExpenseAnalyticsService implements ExpenseAnalyticsUseCase {
     private static final String DEFAULT_CATEGORY = "SEM_CATEGORIA";
 
     private final FindTransactionUseCase findTransactionUseCase;
+    private final Clock clock;
 
     public ExpenseAnalyticsService(
-            FindTransactionUseCase findTransactionUseCase) {
+            FindTransactionUseCase findTransactionUseCase,
+            Clock clock) {
         this.findTransactionUseCase = findTransactionUseCase;
+        this.clock = clock;
     }
 
     @Override
@@ -57,7 +60,7 @@ public class ExpenseAnalyticsService implements ExpenseAnalyticsUseCase {
             LocalDate endDate) {
 
         if (startDate == null && endDate == null) {
-            YearMonth currentMonth = YearMonth.now();
+            YearMonth currentMonth = YearMonth.now(clock);
 
             return new LocalDate[]{
                     currentMonth.atDay(1),

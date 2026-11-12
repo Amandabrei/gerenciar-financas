@@ -1,6 +1,6 @@
 package com.gerenciar.financas.user.adapters.out.persistence.entity;
 
-import com.gerenciar.financas.user.domain.model.User;
+import com.gerenciar.financas.user.core.model.User;
 import jakarta.persistence.*;
 
 import java.util.UUID;

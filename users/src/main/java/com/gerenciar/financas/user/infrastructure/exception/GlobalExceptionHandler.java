@@ -1,8 +1,8 @@
 package com.gerenciar.financas.user.infrastructure.exception;
 
-import com.gerenciar.financas.user.domain.exception.EmailAlreadyExistsException;
-import com.gerenciar.financas.user.domain.exception.InvalidCredentialsException;
-import com.gerenciar.financas.user.domain.exception.UserNotFoundException;
+import com.gerenciar.financas.user.core.exception.EmailAlreadyExistsException;
+import com.gerenciar.financas.user.core.exception.InvalidCredentialsException;
+import com.gerenciar.financas.user.core.exception.UserNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;

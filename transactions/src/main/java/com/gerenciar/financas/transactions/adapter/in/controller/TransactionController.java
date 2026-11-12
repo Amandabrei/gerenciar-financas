@@ -9,9 +9,9 @@ import com.gerenciar.financas.transactions.application.model.ExpenseAnalytics;
 import com.gerenciar.financas.transactions.application.port.in.CreateTransactionUseCase;
 import com.gerenciar.financas.transactions.application.port.in.ExpenseAnalyticsUseCase;
 import com.gerenciar.financas.transactions.application.port.in.FindTransactionUseCase;
-import com.gerenciar.financas.transactions.domain.enums.TransactionType;
-import com.gerenciar.financas.transactions.domain.exception.TransactionNotFoundException;
-import com.gerenciar.financas.transactions.domain.model.Transaction;
+import com.gerenciar.financas.transactions.core.enums.TransactionType;
+import com.gerenciar.financas.transactions.core.exception.TransactionNotFoundException;
+import com.gerenciar.financas.transactions.core.model.Transaction;
 import com.gerenciar.financas.transactions.infrastructure.security.AuthenticatedUser;
 
 import io.swagger.v3.oas.annotations.Operation;

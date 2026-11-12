@@ -7,18 +7,20 @@ import com.gerenciar.financas.transactions.application.port.out.account.AccountF
 import com.gerenciar.financas.transactions.application.port.out.account.AccountFinancialPort;
 import com.gerenciar.financas.transactions.application.port.out.exchange.ExchangeRateInfo;
 import com.gerenciar.financas.transactions.application.port.out.exchange.ExchangeRatePort;
-import com.gerenciar.financas.transactions.domain.enums.TransactionStatus;
-import com.gerenciar.financas.transactions.domain.enums.TransactionType;
-import com.gerenciar.financas.transactions.domain.exception.InvalidTransactionException;
-import com.gerenciar.financas.transactions.domain.exception.UserNotFoundException;
-import com.gerenciar.financas.transactions.domain.model.Transaction;
+import com.gerenciar.financas.transactions.core.enums.TransactionStatus;
+import com.gerenciar.financas.transactions.core.enums.TransactionType;
+import com.gerenciar.financas.transactions.core.exception.InvalidTransactionException;
+import com.gerenciar.financas.transactions.core.exception.UserNotFoundException;
+import com.gerenciar.financas.transactions.core.model.Transaction;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -34,21 +36,24 @@ public class CreateTransactionService implements CreateTransactionUseCase {
     private final UserValidationPort userValidationPort;
     private final AccountFinancialPort accountFinancialPort;
     private final ExchangeRatePort exchangeRatePort;
+    private final Clock clock;
 
     public CreateTransactionService(
             TransactionRepositoryPort transactionRepositoryPort,
             UserValidationPort userValidationPort,
             AccountFinancialPort accountFinancialPort,
-            ExchangeRatePort exchangeRatePort) {
+            ExchangeRatePort exchangeRatePort,
+            Clock clock){
 
         this.transactionRepositoryPort = transactionRepositoryPort;
         this.userValidationPort = userValidationPort;
         this.accountFinancialPort = accountFinancialPort;
         this.exchangeRatePort = exchangeRatePort;
+        this.clock = clock;
     }
 
     private BigDecimal calculateApprovedDailySpent(UUID ownerId) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(clock);
 
         return transactionRepositoryPort.findAllByOwnerId(ownerId)
                 .stream()
@@ -504,7 +509,7 @@ public class CreateTransactionService implements CreateTransactionUseCase {
                 destinationUserId,
                 type,
                 amount,
-                LocalDateTime.now(),
+                LocalDateTime.now(clock),
                 description,
                 category,
                 status,

@@ -1,7 +1,7 @@
 package com.gerenciar.financas.transactions.adapter.out.persistence.mapper;
 
 import com.gerenciar.financas.transactions.adapter.out.persistence.entity.TransactionEntity;
-import com.gerenciar.financas.transactions.domain.model.Transaction;
+import com.gerenciar.financas.transactions.core.model.Transaction;
 import org.springframework.stereotype.Component;
 
 @Component

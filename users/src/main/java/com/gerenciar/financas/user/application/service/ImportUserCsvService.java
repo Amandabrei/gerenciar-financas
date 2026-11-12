@@ -4,7 +4,7 @@ import com.gerenciar.financas.user.application.port.in.ImportUsersCsvFailure;
 import com.gerenciar.financas.user.application.port.in.ImportUsersCsvResult;
 import com.gerenciar.financas.user.application.port.in.ImportUsersCsvUseCase;
 import com.gerenciar.financas.user.application.port.out.UserRepositoryPort;
-import com.gerenciar.financas.user.domain.model.User;
+import com.gerenciar.financas.user.core.model.User;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;

@@ -1,7 +1,8 @@
 package com.gerenciar.financas.transactions.adapter.in.controller;
 
 import com.gerenciar.financas.transactions.application.port.in.FindAccountBalanceUseCase;
-import com.gerenciar.financas.transactions.domain.exception.AccountNotFoundException;
+import com.gerenciar.financas.transactions.core.exception.AccountNotFoundException;
+import com.gerenciar.financas.transactions.infrastructure.config.TimeConfig;
 import com.gerenciar.financas.transactions.infrastructure.security.AuthenticatedUser;
 import com.gerenciar.financas.transactions.infrastructure.security.SecurityConfig;
 import com.gerenciar.financas.transactions.infrastructure.security.ServiceUnavailableAuthenticationEntryPoint;
@@ -13,7 +14,6 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
@@ -34,7 +34,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(AccountBalanceController.class)
 @Import({
         SecurityConfig.class,
-        ServiceUnavailableAuthenticationEntryPoint.class
+        ServiceUnavailableAuthenticationEntryPoint.class,
+        TimeConfig.class
 })
 class AccountBalanceControllerTest {
 

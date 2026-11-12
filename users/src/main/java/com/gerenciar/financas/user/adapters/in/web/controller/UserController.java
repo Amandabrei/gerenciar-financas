@@ -4,7 +4,7 @@ import com.gerenciar.financas.user.adapters.in.dto.CreateUserRequest;
 import com.gerenciar.financas.user.adapters.in.dto.UpdateUserRequest;
 import com.gerenciar.financas.user.adapters.in.dto.UserResponse;
 import com.gerenciar.financas.user.application.port.in.*;
-import com.gerenciar.financas.user.domain.model.User;
+import com.gerenciar.financas.user.core.model.User;
 import com.gerenciar.financas.user.adapters.in.dto.AuthenticateUserRequest;
 import com.gerenciar.financas.user.infrastructure.security.AuthenticatedUser;
 

@@ -1,9 +1,9 @@
-package com.gerenciar.financas.transactions.adapter.in.exception;
+package com.gerenciar.financas.transactions.infrastructure.exception;
 
-import com.gerenciar.financas.transactions.domain.exception.AccountNotFoundException;
-import com.gerenciar.financas.transactions.domain.exception.InvalidTransactionException;
-import com.gerenciar.financas.transactions.domain.exception.TransactionNotFoundException;
-import com.gerenciar.financas.transactions.domain.exception.UserNotFoundException;
+import com.gerenciar.financas.transactions.core.exception.AccountNotFoundException;
+import com.gerenciar.financas.transactions.core.exception.InvalidTransactionException;
+import com.gerenciar.financas.transactions.core.exception.TransactionNotFoundException;
+import com.gerenciar.financas.transactions.core.exception.UserNotFoundException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,6 +26,7 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.web.context.request.WebRequest;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -34,6 +35,12 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     private static final Logger log =
             LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    private final Clock clock;
+
+    public GlobalExceptionHandler(Clock clock) {
+        this.clock = clock;
+    }
 
     @ExceptionHandler(InvalidTransactionException.class)
     public ResponseEntity<Object> handleInvalidTransaction(
@@ -204,7 +211,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             List<FieldError> fields) {
 
         ApiError error = new ApiError(
-                LocalDateTime.now(),
+                LocalDateTime.now(clock),
                 status.value(),
                 status instanceof HttpStatus httpStatus
                         ? httpStatus.getReasonPhrase()

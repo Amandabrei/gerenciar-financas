@@ -5,9 +5,10 @@ import com.gerenciar.financas.transactions.application.model.ExpenseAnalytics;
 import com.gerenciar.financas.transactions.application.port.in.CreateTransactionUseCase;
 import com.gerenciar.financas.transactions.application.port.in.ExpenseAnalyticsUseCase;
 import com.gerenciar.financas.transactions.application.port.in.FindTransactionUseCase;
-import com.gerenciar.financas.transactions.domain.enums.TransactionStatus;
-import com.gerenciar.financas.transactions.domain.enums.TransactionType;
-import com.gerenciar.financas.transactions.domain.model.Transaction;
+import com.gerenciar.financas.transactions.core.enums.TransactionStatus;
+import com.gerenciar.financas.transactions.core.enums.TransactionType;
+import com.gerenciar.financas.transactions.core.model.Transaction;
+import com.gerenciar.financas.transactions.infrastructure.config.TimeConfig;
 import com.gerenciar.financas.transactions.infrastructure.security.AuthenticatedUser;
 import com.gerenciar.financas.transactions.infrastructure.security.SecurityConfig;
 import com.gerenciar.financas.transactions.infrastructure.security.ServiceUnavailableAuthenticationEntryPoint;
@@ -44,7 +45,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(TransactionController.class)
 @Import({
         SecurityConfig.class,
-        ServiceUnavailableAuthenticationEntryPoint.class
+        ServiceUnavailableAuthenticationEntryPoint.class,
+        TimeConfig.class
 })
 class TransactionControllerTest {
 

@@ -13,6 +13,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -21,10 +22,13 @@ public class ServiceUnavailableAuthenticationEntryPoint
         implements AuthenticationEntryPoint {
 
     private final ObjectMapper objectMapper;
+    private final Clock clock;
 
     public ServiceUnavailableAuthenticationEntryPoint(
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            Clock clock) {
         this.objectMapper = objectMapper;
+        this.clock = clock;
     }
 
     @Override
@@ -42,7 +46,7 @@ public class ServiceUnavailableAuthenticationEntryPoint
             objectMapper.writeValue(
                     response.getOutputStream(),
                     new ApiError(
-                            LocalDateTime.now(),
+                            LocalDateTime.now(clock),
                             HttpStatus.SERVICE_UNAVAILABLE.value(),
                             HttpStatus.SERVICE_UNAVAILABLE.getReasonPhrase(),
                             "Serviço de usuários indisponível para autenticação.",

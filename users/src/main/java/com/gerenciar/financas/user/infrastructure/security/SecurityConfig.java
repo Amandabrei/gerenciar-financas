@@ -30,7 +30,7 @@ public class SecurityConfig {
                                 "/swagger-ui.html",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**"
-                        ).permitAll()
+                        ).hasAnyRole("USER", "SERVICE")
 
                         .requestMatchers(
                                 HttpMethod.POST,
@@ -61,7 +61,7 @@ public class SecurityConfig {
                         .requestMatchers(
                                 HttpMethod.POST,
                                 "/users/import"
-                        ).hasRole("USER")
+                        ).hasAnyRole("SERVICE")
 
                         .anyRequest().authenticated()
                 )

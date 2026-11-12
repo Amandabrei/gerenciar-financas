@@ -1,4 +1,4 @@
-package com.gerenciar.financas.user.domain.exception;
+package com.gerenciar.financas.transactions.core.exception;
 
 public class UserNotFoundException extends RuntimeException {
 

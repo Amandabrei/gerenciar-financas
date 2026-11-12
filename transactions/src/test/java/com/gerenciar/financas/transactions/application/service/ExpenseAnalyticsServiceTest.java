@@ -2,17 +2,20 @@ package com.gerenciar.financas.transactions.application.service;
 
 import com.gerenciar.financas.transactions.application.model.ExpenseAnalytics;
 import com.gerenciar.financas.transactions.application.port.in.FindTransactionUseCase;
-import com.gerenciar.financas.transactions.domain.enums.TransactionStatus;
-import com.gerenciar.financas.transactions.domain.enums.TransactionType;
-import com.gerenciar.financas.transactions.domain.model.Transaction;
+import com.gerenciar.financas.transactions.core.enums.TransactionStatus;
+import com.gerenciar.financas.transactions.core.enums.TransactionType;
+import com.gerenciar.financas.transactions.core.model.Transaction;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
 
@@ -23,11 +26,18 @@ class ExpenseAnalyticsServiceTest {
 
     private FindTransactionUseCase findTransactionUseCase;
     private ExpenseAnalyticsService service;
+    private Clock clock;
 
     @BeforeEach
     void setUp() {
         findTransactionUseCase = mock(FindTransactionUseCase.class);
-        service = new ExpenseAnalyticsService(findTransactionUseCase);
+
+        clock = Clock.fixed(
+                Instant.parse("2026-11-01T02:30:00Z"),
+                ZoneId.of("America/Sao_Paulo")
+        );
+
+        service = new ExpenseAnalyticsService(findTransactionUseCase, clock);
     }
 
     @Test
@@ -107,7 +117,9 @@ class ExpenseAnalyticsServiceTest {
 
         service.analyze(ownerId, null, null);
 
-        YearMonth currentMonth = YearMonth.now();
+        YearMonth currentMonth = YearMonth.now(clock);
+
+        assertEquals(YearMonth.of(2026, 10), currentMonth);
 
         verify(findTransactionUseCase).findAllByOwnerId(
                 ownerId,
@@ -152,9 +164,14 @@ class ExpenseAnalyticsServiceTest {
         verifyNoInteractions(findTransactionUseCase);
     }
 
-    private Transaction transaction(UUID ownerId, TransactionType type,
-                                    String amount, LocalDateTime createdAt, String category,
-                                    TransactionStatus status, String rejectionReason) {
+    private Transaction transaction(
+            UUID ownerId,
+            TransactionType type,
+            String amount,
+            LocalDateTime createdAt,
+            String category,
+            TransactionStatus status,
+            String rejectionReason) {
 
         UUID destinationUserId = type == TransactionType.TRANSFER
                 ? UUID.randomUUID()

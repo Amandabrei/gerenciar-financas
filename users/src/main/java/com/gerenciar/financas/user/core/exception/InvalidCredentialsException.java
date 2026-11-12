@@ -1,4 +1,4 @@
-package com.gerenciar.financas.user.domain.exception;
+package com.gerenciar.financas.user.core.exception;
 
 public class InvalidCredentialsException extends RuntimeException {
 

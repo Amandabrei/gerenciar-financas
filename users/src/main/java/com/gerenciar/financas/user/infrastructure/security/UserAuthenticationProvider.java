@@ -1,8 +1,8 @@
 package com.gerenciar.financas.user.infrastructure.security;
 
 import com.gerenciar.financas.user.application.port.in.AuthenticateUserUseCase;
-import com.gerenciar.financas.user.domain.exception.InvalidCredentialsException;
-import com.gerenciar.financas.user.domain.model.User;
+import com.gerenciar.financas.user.core.exception.InvalidCredentialsException;
+import com.gerenciar.financas.user.core.model.User;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.BadCredentialsException;

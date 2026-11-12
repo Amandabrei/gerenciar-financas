@@ -1,4 +1,4 @@
-package com.gerenciar.financas.transactions.domain.enums;
+package com.gerenciar.financas.transactions.core.enums;
 
 public enum TransactionType {
     DEPOSIT,

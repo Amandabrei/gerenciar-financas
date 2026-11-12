@@ -29,6 +29,8 @@ spring:
 services:
   user:
     base-url: ${USER_SERVICE_URL:http://localhost:8082}
+    client-username: ${USER_SERVICE_CLIENT_USERNAME}
+    client-password: ${USER_SERVICE_CLIENT_PASSWORD}
   account:
     base-url: ${ACCOUNT_API_URL:https://6aeb6914ee39618d7bf84ac4.mockapi.io/accounts}
   exchange:

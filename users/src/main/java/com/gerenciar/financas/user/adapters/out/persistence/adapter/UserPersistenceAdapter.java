@@ -3,7 +3,7 @@ package com.gerenciar.financas.user.adapters.out.persistence.adapter;
 import com.gerenciar.financas.user.adapters.out.persistence.entity.UserEntity;
 import com.gerenciar.financas.user.adapters.out.persistence.repository.UserJpaRepository;
 import com.gerenciar.financas.user.application.port.out.UserRepositoryPort;
-import com.gerenciar.financas.user.domain.model.User;
+import com.gerenciar.financas.user.core.model.User;
 import org.springframework.stereotype.Component;
 
 import java.util.List;

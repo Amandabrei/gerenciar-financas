@@ -1,7 +1,7 @@
 package com.gerenciar.financas.user.application.service;
 
 import com.gerenciar.financas.user.application.port.out.UserRepositoryPort;
-import com.gerenciar.financas.user.domain.model.User;
+import com.gerenciar.financas.user.core.model.User;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;

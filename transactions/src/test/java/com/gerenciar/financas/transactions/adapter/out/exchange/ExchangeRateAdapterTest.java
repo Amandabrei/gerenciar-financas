@@ -13,7 +13,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
+import java.time.ZoneId;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -43,7 +43,7 @@ class ExchangeRateAdapterTest {
                 "http://localhost",
                 Clock.fixed(
                         Instant.parse("2026-11-08T12:00:00Z"),
-                        ZoneOffset.UTC
+                        ZoneId.of("America/Sao_Paulo")
                 )
         );
 
@@ -100,7 +100,7 @@ class ExchangeRateAdapterTest {
                 "http://localhost",
                 Clock.fixed(
                         Instant.parse("2026-11-02T12:00:00Z"),
-                        ZoneOffset.UTC
+                        ZoneId.of("America/Sao_Paulo")
                 )
         );
 

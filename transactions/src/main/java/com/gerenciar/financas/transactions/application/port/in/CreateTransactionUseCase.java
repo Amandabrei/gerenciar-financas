@@ -1,6 +1,6 @@
 package com.gerenciar.financas.transactions.application.port.in;
 
-import com.gerenciar.financas.transactions.domain.model.Transaction;
+import com.gerenciar.financas.transactions.core.model.Transaction;
 
 import java.math.BigDecimal;
 import java.util.UUID;

@@ -37,3 +37,10 @@ build/
 .env.*
 
 !.env.example
+
+# Arquivos locais de build e diagnóstico
+/transactions/.docker-build-authenticated/
+/transactions/teste-analise.log
+/transactions/teste-controller.log
+/transactions/src/main/java/com/gerenciar/financas/transactions/infrastructure/config/TimeConfig.java.save
+/transactions/certs/*.cer

@@ -5,15 +5,20 @@ import com.gerenciar.financas.transactions.application.port.out.UserValidationPo
 import com.gerenciar.financas.transactions.application.port.out.account.AccountFinancialInfo;
 import com.gerenciar.financas.transactions.application.port.out.account.AccountFinancialPort;
 import com.gerenciar.financas.transactions.application.port.out.exchange.ExchangeRatePort;
-import com.gerenciar.financas.transactions.domain.enums.TransactionStatus;
-import com.gerenciar.financas.transactions.domain.enums.TransactionType;
-import com.gerenciar.financas.transactions.domain.exception.InvalidTransactionException;
-import com.gerenciar.financas.transactions.domain.exception.UserNotFoundException;
-import com.gerenciar.financas.transactions.domain.model.Transaction;
+import com.gerenciar.financas.transactions.core.enums.TransactionStatus;
+import com.gerenciar.financas.transactions.core.enums.TransactionType;
+import com.gerenciar.financas.transactions.core.exception.InvalidTransactionException;
+import com.gerenciar.financas.transactions.core.exception.UserNotFoundException;
+import com.gerenciar.financas.transactions.core.model.Transaction;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -25,6 +30,7 @@ class CreateTransactionServiceTest {
     private UserValidationPort userValidationPort;
     private AccountFinancialPort accountFinancialPort;
     private ExchangeRatePort exchangeRatePort;
+    private Clock clock;
 
     private CreateTransactionService service;
 
@@ -35,11 +41,17 @@ class CreateTransactionServiceTest {
         accountFinancialPort = mock(AccountFinancialPort.class);
         exchangeRatePort = mock(ExchangeRatePort.class);
 
+        clock = Clock.fixed(
+                Instant.parse("2026-11-13T02:30:00Z"),
+                ZoneId.of("America/Sao_Paulo")
+        );
+
         service = new CreateTransactionService(
                 transactionRepositoryPort,
                 userValidationPort,
                 accountFinancialPort,
-                exchangeRatePort
+                exchangeRatePort,
+                clock
         );
     }
 
@@ -50,24 +62,32 @@ class CreateTransactionServiceTest {
 
         when(userValidationPort.userExists(ownerId)).thenReturn(true);
 
+        when(accountFinancialPort.getAccountFinancialInfo(ownerId))
+                .thenReturn(new AccountFinancialInfo(
+                        new BigDecimal("1000.00"),
+                        new BigDecimal("2000.00"),
+                        new BigDecimal("500.00"),
+                        new BigDecimal("100.00")
+                ));
+
         when(transactionRepositoryPort.save(any(Transaction.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
         Transaction result = service.createDeposit(
-                ownerId,
-                amount,
-                "Depósito inicial"
+                ownerId, amount, "Depósito inicial"
         );
 
         assertNotNull(result);
         assertEquals(ownerId, result.getOwnerId());
         assertEquals(TransactionType.DEPOSIT, result.getType());
-        assertEquals(amount, result.getAmount());
         assertEquals(TransactionStatus.APPROVED, result.getStatus());
+        assertEquals(amount, result.getAmount());
 
-        verify(userValidationPort).userExists(ownerId);
+        verify(accountFinancialPort).getAccountFinancialInfo(ownerId);
+        verify(accountFinancialPort).updateBalance(
+                ownerId, new BigDecimal("1500.00")
+        );
         verify(transactionRepositoryPort).save(any(Transaction.class));
-        verifyNoInteractions(accountFinancialPort);
     }
 
     @Test
@@ -118,6 +138,9 @@ class CreateTransactionServiceTest {
         assertEquals(amount, result.getAmount());
 
         verify(accountFinancialPort).getAccountFinancialInfo(ownerId);
+        verify(accountFinancialPort).updateBalance(
+                ownerId, new BigDecimal("900.00")
+        );
         verify(transactionRepositoryPort).save(any(Transaction.class));
     }
 
@@ -148,6 +171,8 @@ class CreateTransactionServiceTest {
         assertEquals("Saldo insuficiente.", result.getRejectionReason());
 
         verify(accountFinancialPort).getAccountFinancialInfo(ownerId);
+        verify(accountFinancialPort, never())
+                .updateBalance(any(UUID.class), any(BigDecimal.class));
         verify(transactionRepositoryPort).save(any(Transaction.class));
     }
 
@@ -171,11 +196,13 @@ class CreateTransactionServiceTest {
         assertNotNull(result);
         assertEquals(TransactionStatus.REJECTED, result.getStatus());
         assertEquals(
-                "Não foi possível consultar saldo e limites. Operação não aprovada.",
+                "Dados financeiros indisponíveis. Operação não aprovada.",
                 result.getRejectionReason()
         );
 
         verify(accountFinancialPort).getAccountFinancialInfo(ownerId);
+        verify(accountFinancialPort, never())
+                .updateBalance(any(UUID.class), any(BigDecimal.class));
         verify(transactionRepositoryPort).save(any(Transaction.class));
     }
 
@@ -196,6 +223,14 @@ class CreateTransactionServiceTest {
                         new BigDecimal("100.00")
                 ));
 
+        when(accountFinancialPort.getAccountFinancialInfo(destinationUserId))
+                .thenReturn(new AccountFinancialInfo(
+                        new BigDecimal("500.00"),
+                        new BigDecimal("2000.00"),
+                        new BigDecimal("500.00"),
+                        new BigDecimal("0.00")
+                ));
+
         when(transactionRepositoryPort.save(any(Transaction.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -209,6 +244,12 @@ class CreateTransactionServiceTest {
         assertEquals(ownerId, result.getOwnerId());
         assertEquals(destinationUserId, result.getDestinationUserId());
 
+        verify(accountFinancialPort).updateBalance(
+                ownerId, new BigDecimal("900.00")
+        );
+        verify(accountFinancialPort).updateBalance(
+                destinationUserId, new BigDecimal("600.00")
+        );
         verify(transactionRepositoryPort).save(any(Transaction.class));
     }
 
@@ -232,6 +273,27 @@ class CreateTransactionServiceTest {
 
         verify(userValidationPort).userExists(ownerId);
         verify(userValidationPort).userExists(destinationUserId);
+        verify(transactionRepositoryPort, never()).save(any(Transaction.class));
+        verifyNoInteractions(accountFinancialPort);
+    }
+
+    @Test
+    void shouldNotCreateTransferToSameUser() {
+        UUID ownerId = UUID.randomUUID();
+
+        when(userValidationPort.userExists(ownerId)).thenReturn(true);
+
+        assertThrows(
+                InvalidTransactionException.class,
+                () -> service.createTransfer(
+                        ownerId,
+                        ownerId,
+                        new BigDecimal("100.00"),
+                        "Transferência para o próprio usuário"
+                )
+        );
+
+        verify(userValidationPort, times(2)).userExists(ownerId);
         verify(transactionRepositoryPort, never()).save(any(Transaction.class));
         verifyNoInteractions(accountFinancialPort);
     }
@@ -264,6 +326,9 @@ class CreateTransactionServiceTest {
         assertEquals("ALIMENTACAO", result.getCategory());
         assertEquals(amount, result.getAmount());
 
+        verify(accountFinancialPort).updateBalance(
+                ownerId, new BigDecimal("850.00")
+        );
         verify(transactionRepositoryPort).save(any(Transaction.class));
     }
 
@@ -316,6 +381,8 @@ class CreateTransactionServiceTest {
                 result.getRejectionReason()
         );
 
+        verify(accountFinancialPort, never())
+                .updateBalance(any(UUID.class), any(BigDecimal.class));
         verify(transactionRepositoryPort).save(any(Transaction.class));
     }
 
@@ -342,6 +409,9 @@ class CreateTransactionServiceTest {
         );
 
         assertEquals(TransactionStatus.APPROVED, result.getStatus());
+        verify(accountFinancialPort).updateBalance(
+                ownerId, new BigDecimal("800.00")
+        );
     }
 
     @Test
@@ -370,6 +440,9 @@ class CreateTransactionServiceTest {
 
         assertEquals(TransactionStatus.REJECTED, result.getStatus());
         assertEquals("Saldo insuficiente.", result.getRejectionReason());
+
+        verify(accountFinancialPort, never())
+                .updateBalance(any(UUID.class), any(BigDecimal.class));
     }
 
     @Test
@@ -382,7 +455,7 @@ class CreateTransactionServiceTest {
                 null,
                 TransactionType.WITHDRAWAL,
                 new BigDecimal("150.00"),
-                java.time.LocalDateTime.now(),
+                java.time.LocalDateTime.now(clock),
                 "Saque anterior",
                 "WITHDRAWAL",
                 TransactionStatus.APPROVED,
@@ -397,7 +470,7 @@ class CreateTransactionServiceTest {
         when(userValidationPort.userExists(ownerId)).thenReturn(true);
 
         when(transactionRepositoryPort.findAllByOwnerId(ownerId))
-                .thenReturn(java.util.List.of(previousWithdrawal));
+                .thenReturn(List.of(previousWithdrawal));
 
         when(accountFinancialPort.getAccountFinancialInfo(ownerId))
                 .thenReturn(new AccountFinancialInfo(
@@ -411,12 +484,13 @@ class CreateTransactionServiceTest {
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
         Transaction result = service.createWithdrawal(
-                ownerId,
-                new BigDecimal("100.00"),
-                "Novo saque"
+                ownerId, new BigDecimal("100.00"), "Novo saque"
         );
 
         assertEquals(TransactionStatus.APPROVED, result.getStatus());
+        verify(accountFinancialPort).updateBalance(
+                ownerId, new BigDecimal("900.00")
+        );
     }
 
     @Test
@@ -429,7 +503,7 @@ class CreateTransactionServiceTest {
                 null,
                 TransactionType.WITHDRAWAL,
                 new BigDecimal("250.00"),
-                java.time.LocalDateTime.now(),
+                java.time.LocalDateTime.now(clock),
                 "Saque anterior",
                 "WITHDRAWAL",
                 TransactionStatus.APPROVED,
@@ -444,7 +518,7 @@ class CreateTransactionServiceTest {
         when(userValidationPort.userExists(ownerId)).thenReturn(true);
 
         when(transactionRepositoryPort.findAllByOwnerId(ownerId))
-                .thenReturn(java.util.List.of(previousWithdrawal));
+                .thenReturn(List.of(previousWithdrawal));
 
         when(accountFinancialPort.getAccountFinancialInfo(ownerId))
                 .thenReturn(new AccountFinancialInfo(
@@ -458,9 +532,7 @@ class CreateTransactionServiceTest {
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
         Transaction result = service.createWithdrawal(
-                ownerId,
-                new BigDecimal("100.00"),
-                "Novo saque"
+                ownerId, new BigDecimal("100.00"), "Novo saque"
         );
 
         assertEquals(TransactionStatus.REJECTED, result.getStatus());
@@ -469,9 +541,11 @@ class CreateTransactionServiceTest {
                 result.getRejectionReason()
         );
 
+        verify(accountFinancialPort, never())
+                .updateBalance(any(UUID.class), any(BigDecimal.class));
         verify(transactionRepositoryPort).save(any(Transaction.class));
     }
-    
+
     @Test
     void shouldIgnoreRejectedTransactionsWhenCalculatingDailySpent() {
         UUID ownerId = UUID.randomUUID();
@@ -482,7 +556,7 @@ class CreateTransactionServiceTest {
                 null,
                 TransactionType.WITHDRAWAL,
                 new BigDecimal("250.00"),
-                java.time.LocalDateTime.now(),
+                java.time.LocalDateTime.now(clock),
                 "Saque rejeitado",
                 "WITHDRAWAL",
                 TransactionStatus.REJECTED,
@@ -497,7 +571,7 @@ class CreateTransactionServiceTest {
         when(userValidationPort.userExists(ownerId)).thenReturn(true);
 
         when(transactionRepositoryPort.findAllByOwnerId(ownerId))
-                .thenReturn(java.util.List.of(rejectedWithdrawal));
+                .thenReturn(List.of(rejectedWithdrawal));
 
         when(accountFinancialPort.getAccountFinancialInfo(ownerId))
                 .thenReturn(new AccountFinancialInfo(
@@ -511,12 +585,13 @@ class CreateTransactionServiceTest {
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
         Transaction result = service.createWithdrawal(
-                ownerId,
-                new BigDecimal("100.00"),
-                "Novo saque"
+                ownerId, new BigDecimal("100.00"), "Novo saque"
         );
 
         assertEquals(TransactionStatus.APPROVED, result.getStatus());
+        verify(accountFinancialPort).updateBalance(
+                ownerId, new BigDecimal("900.00")
+        );
     }
 
     @Test
@@ -529,7 +604,7 @@ class CreateTransactionServiceTest {
                 null,
                 TransactionType.DEPOSIT,
                 new BigDecimal("250.00"),
-                java.time.LocalDateTime.now(),
+                java.time.LocalDateTime.now(clock),
                 "Depósito anterior",
                 "DEPOSIT",
                 TransactionStatus.APPROVED,
@@ -544,7 +619,7 @@ class CreateTransactionServiceTest {
         when(userValidationPort.userExists(ownerId)).thenReturn(true);
 
         when(transactionRepositoryPort.findAllByOwnerId(ownerId))
-                .thenReturn(java.util.List.of(previousDeposit));
+                .thenReturn(List.of(previousDeposit));
 
         when(accountFinancialPort.getAccountFinancialInfo(ownerId))
                 .thenReturn(new AccountFinancialInfo(
@@ -558,27 +633,28 @@ class CreateTransactionServiceTest {
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
         Transaction result = service.createWithdrawal(
-                ownerId,
-                new BigDecimal("100.00"),
-                "Novo saque"
+                ownerId, new BigDecimal("100.00"), "Novo saque"
         );
 
         assertEquals(TransactionStatus.APPROVED, result.getStatus());
+        verify(accountFinancialPort).updateBalance(
+                ownerId, new BigDecimal("900.00")
+        );
     }
 
     @Test
     void shouldApproveTransferWhenPreviousApprovedTransactionsAreWithinDailyLimit() {
         UUID ownerId = UUID.randomUUID();
-        UUID destinationUserId = UUID.randomUUID();
+        UUID previousDestinationUserId = UUID.randomUUID();
         UUID newDestinationUserId = UUID.randomUUID();
 
         Transaction previousTransfer = new Transaction(
                 UUID.randomUUID(),
                 ownerId,
-                destinationUserId,
+                previousDestinationUserId,
                 TransactionType.TRANSFER,
                 new BigDecimal("150.00"),
-                java.time.LocalDateTime.now(),
+                java.time.LocalDateTime.now(clock),
                 "Transferência anterior",
                 "TRANSFER",
                 TransactionStatus.APPROVED,
@@ -591,11 +667,11 @@ class CreateTransactionServiceTest {
         );
 
         when(userValidationPort.userExists(ownerId)).thenReturn(true);
-        when(userValidationPort.userExists(destinationUserId)).thenReturn(true);
+        when(userValidationPort.userExists(previousDestinationUserId)).thenReturn(true);
         when(userValidationPort.userExists(newDestinationUserId)).thenReturn(true);
 
         when(transactionRepositoryPort.findAllByOwnerId(ownerId))
-                .thenReturn(java.util.List.of(previousTransfer));
+                .thenReturn(List.of(previousTransfer));
 
         when(accountFinancialPort.getAccountFinancialInfo(ownerId))
                 .thenReturn(new AccountFinancialInfo(
@@ -603,6 +679,14 @@ class CreateTransactionServiceTest {
                         new BigDecimal("300.00"),
                         new BigDecimal("500.00"),
                         new BigDecimal("100.00")
+                ));
+
+        when(accountFinancialPort.getAccountFinancialInfo(newDestinationUserId))
+                .thenReturn(new AccountFinancialInfo(
+                        new BigDecimal("500.00"),
+                        new BigDecimal("2000.00"),
+                        new BigDecimal("500.00"),
+                        new BigDecimal("0.00")
                 ));
 
         when(transactionRepositoryPort.save(any(Transaction.class)))
@@ -616,6 +700,13 @@ class CreateTransactionServiceTest {
         );
 
         assertEquals(TransactionStatus.APPROVED, result.getStatus());
+
+        verify(accountFinancialPort).updateBalance(
+                ownerId, new BigDecimal("900.00")
+        );
+        verify(accountFinancialPort).updateBalance(
+                newDestinationUserId, new BigDecimal("600.00")
+        );
     }
 
     @Test
@@ -628,7 +719,7 @@ class CreateTransactionServiceTest {
                 null,
                 TransactionType.PURCHASE,
                 new BigDecimal("150.00"),
-                java.time.LocalDateTime.now(),
+                java.time.LocalDateTime.now(clock),
                 "Compra anterior",
                 "ALIMENTACAO",
                 TransactionStatus.APPROVED,
@@ -643,7 +734,7 @@ class CreateTransactionServiceTest {
         when(userValidationPort.userExists(ownerId)).thenReturn(true);
 
         when(transactionRepositoryPort.findAllByOwnerId(ownerId))
-                .thenReturn(java.util.List.of(previousPurchase));
+                .thenReturn(List.of(previousPurchase));
 
         when(accountFinancialPort.getAccountFinancialInfo(ownerId))
                 .thenReturn(new AccountFinancialInfo(
@@ -664,5 +755,284 @@ class CreateTransactionServiceTest {
         );
 
         assertEquals(TransactionStatus.APPROVED, result.getStatus());
+        verify(accountFinancialPort).updateBalance(
+                ownerId, new BigDecimal("900.00")
+        );
     }
+
+
+    @Test
+    void shouldRejectWithdrawalAndRestoreBalanceWhenMockApiUpdateFails() {
+        UUID ownerId = UUID.randomUUID();
+        BigDecimal previousBalance = new BigDecimal("1000.00");
+        BigDecimal newBalance = new BigDecimal("900.00");
+
+        when(userValidationPort.userExists(ownerId)).thenReturn(true);
+
+        when(accountFinancialPort.getAccountFinancialInfo(ownerId))
+                .thenReturn(new AccountFinancialInfo(
+                        previousBalance,
+                        new BigDecimal("2000.00"),
+                        new BigDecimal("500.00"),
+                        new BigDecimal("100.00")
+                ));
+
+        doThrow(new RuntimeException("MockAPI indisponível"))
+                .when(accountFinancialPort)
+                .updateBalance(ownerId, newBalance);
+
+        when(transactionRepositoryPort.save(any(Transaction.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        Transaction result = service.createWithdrawal(
+                ownerId,
+                new BigDecimal("100.00"),
+                "Saque com falha na atualização"
+        );
+
+        assertNotNull(result);
+        assertEquals(TransactionStatus.REJECTED, result.getStatus());
+        assertEquals(
+                "Não foi possível atualizar o saldo do saque. Operação não aprovada.",
+                result.getRejectionReason()
+        );
+
+        verify(accountFinancialPort).updateBalance(ownerId, newBalance);
+        verify(accountFinancialPort).updateBalance(ownerId, previousBalance);
+        verify(transactionRepositoryPort).save(any(Transaction.class));
+    }
+
+    @Test
+    void shouldRestoreBalanceWhenDatabaseSaveFailsAfterBalanceUpdate() {
+        UUID ownerId = UUID.randomUUID();
+        BigDecimal previousBalance = new BigDecimal("1000.00");
+        BigDecimal newBalance = new BigDecimal("900.00");
+
+        when(userValidationPort.userExists(ownerId)).thenReturn(true);
+
+        when(accountFinancialPort.getAccountFinancialInfo(ownerId))
+                .thenReturn(new AccountFinancialInfo(
+                        previousBalance,
+                        new BigDecimal("2000.00"),
+                        new BigDecimal("500.00"),
+                        new BigDecimal("100.00")
+                ));
+
+        RuntimeException databaseException =
+                new RuntimeException("Falha ao salvar no PostgreSQL");
+
+        when(transactionRepositoryPort.save(any(Transaction.class)))
+                .thenThrow(databaseException);
+
+        RuntimeException exception = assertThrows(
+                RuntimeException.class,
+                () -> service.createWithdrawal(
+                        ownerId,
+                        new BigDecimal("100.00"),
+                        "Saque com falha no banco"
+                )
+        );
+
+        assertSame(databaseException, exception);
+
+        verify(accountFinancialPort).updateBalance(ownerId, newBalance);
+        verify(accountFinancialPort).updateBalance(ownerId, previousBalance);
+        verify(transactionRepositoryPort).save(any(Transaction.class));
+    }
+
+    @Test
+    void shouldRestoreBothBalancesWhenDestinationUpdateFailsDuringTransfer() {
+        UUID sourceUserId = UUID.randomUUID();
+        UUID destinationUserId = UUID.randomUUID();
+
+        BigDecimal sourcePreviousBalance = new BigDecimal("1000.00");
+        BigDecimal sourceNewBalance = new BigDecimal("900.00");
+
+        BigDecimal destinationPreviousBalance = new BigDecimal("500.00");
+        BigDecimal destinationNewBalance = new BigDecimal("600.00");
+
+        when(userValidationPort.userExists(sourceUserId)).thenReturn(true);
+        when(userValidationPort.userExists(destinationUserId)).thenReturn(true);
+
+        when(accountFinancialPort.getAccountFinancialInfo(sourceUserId))
+                .thenReturn(new AccountFinancialInfo(
+                        sourcePreviousBalance,
+                        new BigDecimal("2000.00"),
+                        new BigDecimal("500.00"),
+                        new BigDecimal("100.00")
+                ));
+
+        when(accountFinancialPort.getAccountFinancialInfo(destinationUserId))
+                .thenReturn(new AccountFinancialInfo(
+                        destinationPreviousBalance,
+                        new BigDecimal("2000.00"),
+                        new BigDecimal("500.00"),
+                        new BigDecimal("0.00")
+                ));
+
+        doThrow(new RuntimeException("Falha ao atualizar conta de destino"))
+                .when(accountFinancialPort)
+                .updateBalance(destinationUserId, destinationNewBalance);
+
+        when(transactionRepositoryPort.save(any(Transaction.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        Transaction result = service.createTransfer(
+                sourceUserId,
+                destinationUserId,
+                new BigDecimal("100.00"),
+                "Transferência com falha"
+        );
+
+        assertNotNull(result);
+        assertEquals(TransactionStatus.REJECTED, result.getStatus());
+        assertEquals(
+                "Não foi possível atualizar os saldos da transferência. Operação não aprovada.",
+                result.getRejectionReason()
+        );
+
+        verify(accountFinancialPort).updateBalance(
+                sourceUserId, sourceNewBalance
+        );
+
+        verify(accountFinancialPort).updateBalance(
+                destinationUserId, destinationNewBalance
+        );
+
+        verify(accountFinancialPort).updateBalance(
+                destinationUserId, destinationPreviousBalance
+        );
+
+        verify(accountFinancialPort).updateBalance(
+                sourceUserId, sourcePreviousBalance
+        );
+
+        verify(transactionRepositoryPort).save(any(Transaction.class));
+    }
+
+    @Test
+    void shouldRestoreBothBalancesWhenDatabaseSaveFailsAfterTransferUpdates() {
+        UUID sourceUserId = UUID.randomUUID();
+        UUID destinationUserId = UUID.randomUUID();
+
+        BigDecimal sourcePreviousBalance = new BigDecimal("1000.00");
+        BigDecimal sourceNewBalance = new BigDecimal("900.00");
+
+        BigDecimal destinationPreviousBalance = new BigDecimal("500.00");
+        BigDecimal destinationNewBalance = new BigDecimal("600.00");
+
+        when(userValidationPort.userExists(sourceUserId)).thenReturn(true);
+        when(userValidationPort.userExists(destinationUserId)).thenReturn(true);
+
+        when(accountFinancialPort.getAccountFinancialInfo(sourceUserId))
+                .thenReturn(new AccountFinancialInfo(
+                        sourcePreviousBalance,
+                        new BigDecimal("2000.00"),
+                        new BigDecimal("500.00"),
+                        new BigDecimal("100.00")
+                ));
+
+        when(accountFinancialPort.getAccountFinancialInfo(destinationUserId))
+                .thenReturn(new AccountFinancialInfo(
+                        destinationPreviousBalance,
+                        new BigDecimal("2000.00"),
+                        new BigDecimal("500.00"),
+                        new BigDecimal("0.00")
+                ));
+
+        RuntimeException databaseException =
+                new RuntimeException("Falha ao salvar transferência");
+
+        when(transactionRepositoryPort.save(any(Transaction.class)))
+                .thenThrow(databaseException);
+
+        RuntimeException exception = assertThrows(
+                RuntimeException.class,
+                () -> service.createTransfer(
+                        sourceUserId,
+                        destinationUserId,
+                        new BigDecimal("100.00"),
+                        "Transferência com falha no banco"
+                )
+        );
+
+        assertSame(databaseException, exception);
+
+        verify(accountFinancialPort).updateBalance(
+                sourceUserId, sourceNewBalance
+        );
+
+        verify(accountFinancialPort).updateBalance(
+                destinationUserId, destinationNewBalance
+        );
+
+        verify(accountFinancialPort).updateBalance(
+                destinationUserId, destinationPreviousBalance
+        );
+
+        verify(accountFinancialPort).updateBalance(
+                sourceUserId, sourcePreviousBalance
+        );
+
+        verify(transactionRepositoryPort).save(any(Transaction.class));
+    }
+
+
+    @Test
+    void shouldUseSaoPauloDateWhenCalculatingDailyLimit() {
+        UUID ownerId = UUID.randomUUID();
+
+        Transaction previousWithdrawal = new Transaction(
+                UUID.randomUUID(),
+                ownerId,
+                null,
+                TransactionType.WITHDRAWAL,
+                new BigDecimal("250.00"),
+                LocalDateTime.of(2026, 11, 12, 10, 0),
+                "Saque anterior",
+                "WITHDRAWAL",
+                TransactionStatus.APPROVED,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        when(userValidationPort.userExists(ownerId)).thenReturn(true);
+
+        when(transactionRepositoryPort.findAllByOwnerId(ownerId))
+                .thenReturn(List.of(previousWithdrawal));
+
+        when(accountFinancialPort.getAccountFinancialInfo(ownerId))
+                .thenReturn(new AccountFinancialInfo(
+                        new BigDecimal("1000.00"),
+                        new BigDecimal("300.00"),
+                        new BigDecimal("500.00"),
+                        new BigDecimal("100.00")
+                ));
+
+        when(transactionRepositoryPort.save(any(Transaction.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        Transaction result = service.createWithdrawal(
+                ownerId,
+                new BigDecimal("100.00"),
+                "Novo saque"
+        );
+
+        assertEquals(TransactionStatus.REJECTED, result.getStatus());
+
+        assertEquals(
+                "O limite diário foi ultrapassado.",
+                result.getRejectionReason()
+        );
+
+        verify(accountFinancialPort, never())
+                .updateBalance(any(UUID.class), any(BigDecimal.class));
+
+        verify(transactionRepositoryPort).save(any(Transaction.class));
+    }
+
 }

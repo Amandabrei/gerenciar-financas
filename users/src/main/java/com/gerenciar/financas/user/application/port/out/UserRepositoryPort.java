@@ -1,6 +1,6 @@
 package com.gerenciar.financas.user.application.port.out;
 
-import com.gerenciar.financas.user.domain.model.User;
+import com.gerenciar.financas.user.core.model.User;
 
 import java.util.List;
 import java.util.Optional;

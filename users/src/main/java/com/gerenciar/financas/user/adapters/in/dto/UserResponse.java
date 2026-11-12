@@ -1,6 +1,6 @@
 package com.gerenciar.financas.user.adapters.in.dto;
 
-import com.gerenciar.financas.user.domain.model.User;
+import com.gerenciar.financas.user.core.model.User;
 
 import java.util.UUID;
 

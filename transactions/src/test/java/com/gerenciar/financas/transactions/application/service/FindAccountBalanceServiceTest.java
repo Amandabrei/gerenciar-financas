@@ -3,8 +3,8 @@ package com.gerenciar.financas.transactions.application.service;
 import com.gerenciar.financas.transactions.application.port.out.UserValidationPort;
 import com.gerenciar.financas.transactions.application.port.out.account.AccountFinancialInfo;
 import com.gerenciar.financas.transactions.application.port.out.account.AccountFinancialPort;
-import com.gerenciar.financas.transactions.domain.exception.AccountNotFoundException;
-import com.gerenciar.financas.transactions.domain.exception.UserNotFoundException;
+import com.gerenciar.financas.transactions.core.exception.AccountNotFoundException;
+import com.gerenciar.financas.transactions.core.exception.UserNotFoundException;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

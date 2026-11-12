@@ -1,7 +1,7 @@
 package com.gerenciar.financas.transactions.adapter.in.dto;
 
-import com.gerenciar.financas.transactions.domain.enums.TransactionStatus;
-import com.gerenciar.financas.transactions.domain.enums.TransactionType;
+import com.gerenciar.financas.transactions.core.enums.TransactionStatus;
+import com.gerenciar.financas.transactions.core.enums.TransactionType;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;

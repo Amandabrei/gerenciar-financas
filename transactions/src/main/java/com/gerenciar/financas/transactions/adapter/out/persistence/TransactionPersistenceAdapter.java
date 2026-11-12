@@ -4,7 +4,7 @@ import com.gerenciar.financas.transactions.adapter.out.persistence.entity.Transa
 import com.gerenciar.financas.transactions.adapter.out.persistence.mapper.TransactionMapper;
 import com.gerenciar.financas.transactions.adapter.out.persistence.repository.SpringDataTransactionRepository;
 import com.gerenciar.financas.transactions.application.port.out.TransactionRepositoryPort;
-import com.gerenciar.financas.transactions.domain.model.Transaction;
+import com.gerenciar.financas.transactions.core.model.Transaction;
 import org.springframework.stereotype.Component;
 
 import java.util.List;

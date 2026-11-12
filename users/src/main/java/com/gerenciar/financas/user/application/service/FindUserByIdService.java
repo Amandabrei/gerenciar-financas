@@ -2,8 +2,8 @@ package com.gerenciar.financas.user.application.service;
 
 import com.gerenciar.financas.user.application.port.in.FindUserByIdUseCase;
 import com.gerenciar.financas.user.application.port.out.UserRepositoryPort;
-import com.gerenciar.financas.user.domain.exception.UserNotFoundException;
-import com.gerenciar.financas.user.domain.model.User;
+import com.gerenciar.financas.user.core.exception.UserNotFoundException;
+import com.gerenciar.financas.user.core.model.User;
 import org.springframework.stereotype.Service;
 
 import java.util.UUID;

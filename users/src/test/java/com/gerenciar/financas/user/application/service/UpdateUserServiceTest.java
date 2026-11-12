@@ -1,9 +1,9 @@
 package com.gerenciar.financas.user.application.service;
 
 import com.gerenciar.financas.user.application.port.out.UserRepositoryPort;
-import com.gerenciar.financas.user.domain.exception.EmailAlreadyExistsException;
-import com.gerenciar.financas.user.domain.exception.UserNotFoundException;
-import com.gerenciar.financas.user.domain.model.User;
+import com.gerenciar.financas.user.core.exception.EmailAlreadyExistsException;
+import com.gerenciar.financas.user.core.exception.UserNotFoundException;
+import com.gerenciar.financas.user.core.model.User;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;

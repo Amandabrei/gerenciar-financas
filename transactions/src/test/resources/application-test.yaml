@@ -9,3 +9,9 @@ spring:
     hibernate:
       ddl-auto: create-drop
     show-sql: false
+
+services:
+  user:
+    base-url: http://localhost:8082
+    client-username: test-service
+    client-password: test-password

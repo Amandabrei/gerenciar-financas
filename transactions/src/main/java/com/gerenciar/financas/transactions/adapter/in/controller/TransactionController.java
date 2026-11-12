@@ -4,44 +4,68 @@ import com.gerenciar.financas.transactions.adapter.in.dto.CreatePurchaseRequest;
 import com.gerenciar.financas.transactions.adapter.in.dto.CreateTransactionRequest;
 import com.gerenciar.financas.transactions.adapter.in.dto.CreateTransferRequest;
 import com.gerenciar.financas.transactions.adapter.in.dto.TransactionResponse;
+import com.gerenciar.financas.transactions.adapter.in.report.TransactionCsvReportGenerator;
+import com.gerenciar.financas.transactions.application.model.ExpenseAnalytics;
 import com.gerenciar.financas.transactions.application.port.in.CreateTransactionUseCase;
+import com.gerenciar.financas.transactions.application.port.in.ExpenseAnalyticsUseCase;
 import com.gerenciar.financas.transactions.application.port.in.FindTransactionUseCase;
-import com.gerenciar.financas.transactions.domain.enums.TransactionType;
-import com.gerenciar.financas.transactions.domain.exception.TransactionNotFoundException;
-import com.gerenciar.financas.transactions.domain.model.Transaction;
+import com.gerenciar.financas.transactions.core.enums.TransactionType;
+import com.gerenciar.financas.transactions.core.exception.TransactionNotFoundException;
+import com.gerenciar.financas.transactions.core.model.Transaction;
+import com.gerenciar.financas.transactions.infrastructure.security.AuthenticatedUser;
 
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
 
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import jakarta.validation.Valid;
+
 @RestController
 @RequestMapping("/transactions")
-@Tag(name = "Transações", description = "Gerenciamento de transações financeiras")
 public class TransactionController {
 
     private final CreateTransactionUseCase createTransactionUseCase;
     private final FindTransactionUseCase findTransactionUseCase;
+    private final ExpenseAnalyticsUseCase expenseAnalyticsUseCase;
 
     public TransactionController(
             CreateTransactionUseCase createTransactionUseCase,
-            FindTransactionUseCase findTransactionUseCase) {
+            FindTransactionUseCase findTransactionUseCase,
+            ExpenseAnalyticsUseCase expenseAnalyticsUseCase) {
+
         this.createTransactionUseCase = createTransactionUseCase;
         this.findTransactionUseCase = findTransactionUseCase;
+        this.expenseAnalyticsUseCase = expenseAnalyticsUseCase;
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Consultar transação por ID", description = "Consulta uma transação pelo seu identificador.")
-    public ResponseEntity<TransactionResponse> findById(@PathVariable UUID id) {
+    @Operation(
+            summary = "Consultar transação por ID",
+            description = """
+                    Consulta os detalhes de uma transação pertencente ao usuário autenticado.
+                    Retorna os dados da movimentação, seu status e as informações de cotação
+                    de USD e EUR, quando disponíveis.
+                    """,
+            tags = {"Transações"}
+    )
+    public ResponseEntity<TransactionResponse> findById(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser) {
+
         Transaction transaction = findTransactionUseCase.findById(id)
+                .filter(item -> item.getOwnerId().equals(authenticatedUser.id()))
                 .orElseThrow(() -> new TransactionNotFoundException(
                         "Transação não encontrada."
                 ));
@@ -50,9 +74,17 @@ public class TransactionController {
     }
 
     @GetMapping
-    @Operation(summary = "Listar transações", description = "Lista as transações de um usuário com filtros opcionais.")
+    @Operation(
+            summary = "Listar transações",
+            description = """
+                    Lista o histórico de transações do usuário autenticado.
+                    Permite aplicar filtros opcionais por data inicial, data final
+                    e tipo de transação.
+                    """,
+            tags = {"Transações"}
+    )
     public List<TransactionResponse> findAllByOwnerId(
-            @RequestParam UUID ownerId,
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
             LocalDateTime startDate,
@@ -62,19 +94,70 @@ public class TransactionController {
             @RequestParam(required = false) TransactionType type) {
 
         return findTransactionUseCase.findAllByOwnerId(
-                        ownerId, startDate, endDate, type)
+                        authenticatedUser.id(), startDate, endDate, type)
                 .stream()
                 .map(this::toResponse)
                 .toList();
     }
 
+    @GetMapping(value = "/report", produces = "text/csv")
+    @Operation(
+            summary = "Exportar relatório de transações em CSV",
+            description = """
+                    Exporta as transações do usuário autenticado em formato CSV,
+                    incluindo movimentações aprovadas e rejeitadas dentro do período informado.
+                    """,
+            tags = {"Relatórios"}
+    )
+    public ResponseEntity<byte[]> exportReport(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @RequestParam
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate startDate,
+            @RequestParam
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate endDate) {
+
+        if (startDate.isAfter(endDate)) {
+            throw new IllegalArgumentException(
+                    "A data inicial não pode ser posterior à data final."
+            );
+        }
+
+        List<Transaction> transactions =
+                findTransactionUseCase.findAllByOwnerId(
+                        authenticatedUser.id(),
+                        startDate.atStartOfDay(),
+                        endDate.atTime(23, 59, 59, 999_999_999),
+                        null
+                );
+
+        byte[] csv = TransactionCsvReportGenerator.generate(transactions);
+
+        return ResponseEntity.ok()
+                .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"relatorio-transacoes.csv\""
+                )
+                .body(csv);
+    }
+
     @PostMapping("/deposits")
-    @Operation(summary = "Registrar depósito", description = "Registra um depósito na conta do usuário.")
+    @Operation(
+            summary = "Registrar depósito",
+            description = """
+                    Registra um depósito na conta do usuário autenticado.
+                    O depósito não exige validação de saldo disponível na API de contas.
+                    """,
+            tags = {"Registro de transações"}
+    )
     public ResponseEntity<TransactionResponse> createDeposit(
-            @Valid @RequestBody CreateTransactionRequest request) {
+            @Valid @RequestBody CreateTransactionRequest request,
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser) {
 
         Transaction transaction = createTransactionUseCase.createDeposit(
-                request.ownerId(),
+                authenticatedUser.id(),
                 request.amount(),
                 request.description()
         );
@@ -83,12 +166,20 @@ public class TransactionController {
     }
 
     @PostMapping("/withdrawal")
-    @Operation(summary = "Registrar saque", description = "Registra um saque na conta do usuário.")
+    @Operation(
+            summary = "Registrar saque",
+            description = """
+                    Registra um saque na conta do usuário autenticado.
+                    A operação está sujeita à validação de saldo e limites da conta.
+                    """,
+            tags = {"Registro de transações"}
+    )
     public ResponseEntity<TransactionResponse> createWithdrawal(
-            @Valid @RequestBody CreateTransactionRequest request) {
+            @Valid @RequestBody CreateTransactionRequest request,
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser) {
 
         Transaction transaction = createTransactionUseCase.createWithdrawal(
-                request.ownerId(),
+                authenticatedUser.id(),
                 request.amount(),
                 request.description()
         );
@@ -97,12 +188,20 @@ public class TransactionController {
     }
 
     @PostMapping("/transfers")
-    @Operation(summary = "Registrar transferência", description = "Registra uma transferência entre usuários.")
+    @Operation(
+            summary = "Registrar transferência",
+            description = """
+                    Registra uma transferência do usuário autenticado para outro usuário.
+                    A operação está sujeita às validações de saldo e limites da conta.
+                    """,
+            tags = {"Registro de transações"}
+    )
     public ResponseEntity<TransactionResponse> createTransfer(
-            @Valid @RequestBody CreateTransferRequest request) {
+            @Valid @RequestBody CreateTransferRequest request,
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser) {
 
         Transaction transaction = createTransactionUseCase.createTransfer(
-                request.ownerId(),
+                authenticatedUser.id(),
                 request.destinationUserId(),
                 request.amount(),
                 request.description()
@@ -112,18 +211,96 @@ public class TransactionController {
     }
 
     @PostMapping("/purchase")
-    @Operation(summary = "Registrar compra", description = "Registra uma compra com sua respectiva categoria.")
+    @Operation(
+            summary = "Registrar compra",
+            description = """
+                    Registra uma compra para o usuário autenticado,
+                    informando o valor, a descrição e a categoria da despesa.
+                    A operação está sujeita às validações de saldo e limites da conta.
+                    """,
+            tags = {"Registro de transações"}
+    )
     public ResponseEntity<TransactionResponse> createPurchase(
-            @Valid @RequestBody CreatePurchaseRequest request) {
+            @Valid @RequestBody CreatePurchaseRequest request,
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser) {
 
         Transaction transaction = createTransactionUseCase.createPurchase(
-                request.ownerId(),
+                authenticatedUser.id(),
                 request.amount(),
                 request.description(),
                 request.category()
         );
 
         return createdResponse(transaction);
+    }
+
+    @GetMapping("/analytics/category")
+    @Operation(
+            summary = "Analisar despesas por categoria",
+            description = """
+                    Retorna as despesas aprovadas agrupadas por categoria,
+                    incluindo o total geral do período.
+                    """,
+            tags = {"Análise de despesas"}
+    )
+    public ExpenseAnalytics.CategorySummary analyzeByCategory(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate startDate,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate endDate) {
+
+        return expenseAnalyticsUseCase.analyze(
+                authenticatedUser.id(), startDate, endDate
+        ).categorySummary();
+    }
+
+    @GetMapping("/analytics/day")
+    @Operation(
+            summary = "Analisar despesas por dia",
+            description = """
+                    Retorna o total de despesas aprovadas agrupadas por dia,
+                    considerando o período informado.
+                    """,
+            tags = {"Análise de despesas"}
+    )
+    public List<ExpenseAnalytics.DailyExpense> analyzeByDay(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate startDate,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate endDate) {
+
+        return expenseAnalyticsUseCase.analyze(
+                authenticatedUser.id(), startDate, endDate
+        ).dailyExpenses();
+    }
+
+    @GetMapping("/analytics/month")
+    @Operation(
+            summary = "Analisar despesas por mês",
+            description = """
+                    Retorna o total de despesas aprovadas agrupadas por mês,
+                    considerando o período informado.
+                    """,
+            tags = {"Análise de despesas"}
+    )
+    public List<ExpenseAnalytics.MonthlyExpense> analyzeByMonth(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate startDate,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate endDate) {
+
+        return expenseAnalyticsUseCase.analyze(
+                authenticatedUser.id(), startDate, endDate
+        ).monthlyExpenses();
     }
 
     private ResponseEntity<TransactionResponse> createdResponse(

@@ -1,15 +1,19 @@
 package com.gerenciar.financas.transactions.infrastructure.config;
 
+import com.gerenciar.financas.transactions.application.port.in.FindTransactionUseCase;
 import com.gerenciar.financas.transactions.application.port.out.TransactionRepositoryPort;
 import com.gerenciar.financas.transactions.application.port.out.UserValidationPort;
 import com.gerenciar.financas.transactions.application.port.out.account.AccountFinancialPort;
 import com.gerenciar.financas.transactions.application.port.out.exchange.ExchangeRatePort;
 import com.gerenciar.financas.transactions.application.service.CreateTransactionService;
+import com.gerenciar.financas.transactions.application.service.ExpenseAnalyticsService;
 import com.gerenciar.financas.transactions.application.service.FindAccountBalanceService;
 import com.gerenciar.financas.transactions.application.service.FindTransactionService;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import java.time.Clock;
 
 @Configuration
 public class TransactionServiceConfig {
@@ -19,13 +23,14 @@ public class TransactionServiceConfig {
             TransactionRepositoryPort transactionRepositoryPort,
             UserValidationPort userValidationPort,
             AccountFinancialPort accountFinancialPort,
-            ExchangeRatePort exchangeRatePort) {
-
+            ExchangeRatePort exchangeRatePort,
+            Clock clock) {
         return new CreateTransactionService(
                 transactionRepositoryPort,
                 userValidationPort,
                 accountFinancialPort,
-                exchangeRatePort
+                exchangeRatePort,
+                clock
         );
     }
 
@@ -45,4 +50,12 @@ public class TransactionServiceConfig {
                 userValidationPort
         );
     }
+
+    @Bean
+    public ExpenseAnalyticsService expenseAnalyticsService(
+            FindTransactionUseCase findTransactionUseCase,
+            Clock clock) {
+        return new ExpenseAnalyticsService(findTransactionUseCase, clock);
+    }
+
 }

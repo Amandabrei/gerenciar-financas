@@ -2,8 +2,8 @@ package com.gerenciar.financas.transactions.application.service;
 
 import com.gerenciar.financas.transactions.application.port.in.FindTransactionUseCase;
 import com.gerenciar.financas.transactions.application.port.out.TransactionRepositoryPort;
-import com.gerenciar.financas.transactions.domain.enums.TransactionType;
-import com.gerenciar.financas.transactions.domain.model.Transaction;
+import com.gerenciar.financas.transactions.core.enums.TransactionType;
+import com.gerenciar.financas.transactions.core.model.Transaction;
 
 import java.time.LocalDateTime;
 import java.util.List;

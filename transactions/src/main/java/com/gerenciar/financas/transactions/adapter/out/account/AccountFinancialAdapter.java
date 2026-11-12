@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
+import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.UUID;
 
@@ -27,6 +28,40 @@ public class AccountFinancialAdapter implements AccountFinancialPort {
 
     @Override
     public AccountFinancialInfo getAccountFinancialInfo(UUID userId) {
+
+        AccountResponse account = findAccount(userId);
+
+        if (account == null) {
+            return null;
+        }
+
+        return new AccountFinancialInfo(
+                account.balance(),
+                account.dailyLimit(),
+                account.transactionLimit(),
+                account.dailySpent()
+        );
+    }
+
+    @Override
+    public void updateBalance(UUID userId, BigDecimal newBalance) {
+
+        AccountResponse account = findAccount(userId);
+
+        if (account == null || account.id() == null || account.id().isBlank()) {
+            throw new IllegalStateException(
+                    "Conta financeira não encontrada para atualizar o saldo."
+            );
+        }
+
+        restClient.patch()
+                .uri("/{id}", account.id())
+                .body(new BalanceUpdateRequest(newBalance))
+                .retrieve()
+                .toBodilessEntity();
+    }
+
+    private AccountResponse findAccount(UUID userId) {
 
         AccountResponse[] accounts;
 
@@ -53,21 +88,19 @@ public class AccountFinancialAdapter implements AccountFinancialPort {
         return Arrays.stream(accounts)
                 .filter(account -> userId.toString().equals(account.userId()))
                 .findFirst()
-                .map(account -> new AccountFinancialInfo(
-                        account.balance(),
-                        account.dailyLimit(),
-                        account.transactionLimit(),
-                        account.dailySpent()
-                ))
                 .orElse(null);
     }
 
     public record AccountResponse(
             String userId,
-            java.math.BigDecimal balance,
-            java.math.BigDecimal dailyLimit,
-            java.math.BigDecimal transactionLimit,
-            java.math.BigDecimal dailySpent
+            BigDecimal balance,
+            BigDecimal dailyLimit,
+            BigDecimal transactionLimit,
+            BigDecimal dailySpent,
+            String id
     ) {
+    }
+
+    public record BalanceUpdateRequest(BigDecimal balance) {
     }
 }

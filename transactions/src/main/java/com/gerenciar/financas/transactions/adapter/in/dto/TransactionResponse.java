@@ -21,8 +21,10 @@ public record TransactionResponse(
         String rejectionReason,
         BigDecimal usdExchangeRate,
         LocalDate usdQuoteDate,
+        boolean usdQuoteAvailable,
         BigDecimal eurExchangeRate,
         LocalDate eurQuoteDate,
+        boolean eurQuoteAvailable,
         BigDecimal balanceBefore,
         BigDecimal balanceAfter
 ) {

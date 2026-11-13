@@ -118,9 +118,7 @@ public class CreateTransactionService implements CreateTransactionUseCase {
                 validateOutgoingTransaction(ownerId, amount);
 
         if (validation.rejectionReason() != null) {
-            BigDecimal knownBalance = validation.account() != null
-                    ? validation.account().balance()
-                    : null;
+            BigDecimal knownBalance = getKnownBalance(validation);
 
             return saveRejectedTransaction(
                     ownerId, null, TransactionType.WITHDRAWAL,
@@ -169,9 +167,7 @@ public class CreateTransactionService implements CreateTransactionUseCase {
                 validateOutgoingTransaction(ownerId, amount);
 
         if (validation.rejectionReason() != null) {
-            BigDecimal knownBalance = validation.account() != null
-                    ? validation.account().balance()
-                    : null;
+            BigDecimal knownBalance = getKnownBalance(validation);
 
             return saveRejectedTransaction(
                     ownerId, destinationUserId, TransactionType.TRANSFER,
@@ -237,9 +233,7 @@ public class CreateTransactionService implements CreateTransactionUseCase {
                 validateOutgoingTransaction(ownerId, amount);
 
         if (validation.rejectionReason() != null) {
-            BigDecimal knownBalance = validation.account() != null
-                    ? validation.account().balance()
-                    : null;
+            BigDecimal knownBalance = getKnownBalance(validation);
 
             return saveRejectedTransaction(
                     ownerId, null, TransactionType.PURCHASE,
@@ -474,6 +468,12 @@ public class CreateTransactionService implements CreateTransactionUseCase {
         );
 
         return transactionRepositoryPort.save(transaction);
+    }
+
+    private BigDecimal getKnownBalance(ValidationResult validation) {
+        return validation.account() != null
+                ? validation.account().balance()
+                : null;
     }
 
     private ValidationResult validateOutgoingTransaction(

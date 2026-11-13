@@ -48,16 +48,6 @@ class ExchangeRateAdapterTest {
         );
 
         server.expect(requestTo(
-                        "http://localhost/cotacao/USD/2026-11-08"))
-                .andExpect(method(HttpMethod.GET))
-                .andRespond(withStatus(HttpStatus.NOT_FOUND));
-
-        server.expect(requestTo(
-                        "http://localhost/cotacao/USD/2026-11-07"))
-                .andExpect(method(HttpMethod.GET))
-                .andRespond(withStatus(HttpStatus.NOT_FOUND));
-
-        server.expect(requestTo(
                         "http://localhost/cotacao/USD/2026-11-06"))
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withSuccess(
@@ -109,17 +99,7 @@ class ExchangeRateAdapterTest {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withStatus(HttpStatus.NOT_FOUND));
 
-        server.expect(requestTo(
-                        "http://localhost/cotacao/EUR/2026-11-01"))
-                .andExpect(method(HttpMethod.GET))
-                .andRespond(withStatus(HttpStatus.NOT_FOUND));
-
-        server.expect(requestTo(
-                        "http://localhost/cotacao/EUR/2026-10-31"))
-                .andExpect(method(HttpMethod.GET))
-                .andRespond(withStatus(HttpStatus.NOT_FOUND));
-
-        server.expect(requestTo(
+          server.expect(requestTo(
                         "http://localhost/cotacao/EUR/2026-10-30"))
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withSuccess(
@@ -149,6 +129,184 @@ class ExchangeRateAdapterTest {
         assertEquals(
                 LocalDate.of(2026, 10, 30),
                 result.get().quoteDate()
+        );
+
+        server.verify();
+    }
+
+
+    @Test
+    void shouldReuseCachedQuoteWithoutCallingBrasilApiAgain() {
+
+        adapter = new ExchangeRateAdapter(
+                builder,
+                "http://localhost",
+                Clock.fixed(
+                        Instant.parse("2026-11-09T12:00:00Z"),
+                        ZoneId.of("America/Sao_Paulo")
+                )
+        );
+
+        server.expect(requestTo(
+                        "http://localhost/cotacao/USD/2026-11-09"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(
+                        """
+                        {
+                            "moeda": "USD",
+                            "data": "2026-11-09",
+                            "cotacoes": [
+                                {
+                                    "cotacao_venda": 5.4321
+                                }
+                            ]
+                        }
+                        """,
+                        MediaType.APPLICATION_JSON
+                ));
+
+        Optional<ExchangeRateInfo> firstResult =
+                adapter.getExchangeRate("USD");
+
+        Optional<ExchangeRateInfo> secondResult =
+                adapter.getExchangeRate("USD");
+
+        assertTrue(firstResult.isPresent());
+        assertEquals(firstResult, secondResult);
+
+        server.verify();
+    }
+
+    @Test
+    void shouldReuseNegativeCacheWithoutRepeatingFailedRequest() {
+
+        adapter = new ExchangeRateAdapter(
+                builder,
+                "http://localhost",
+                Clock.fixed(
+                        Instant.parse("2026-11-09T12:00:00Z"),
+                        ZoneId.of("America/Sao_Paulo")
+                )
+        );
+
+        server.expect(requestTo(
+                        "http://localhost/cotacao/USD/2026-11-09"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withStatus(HttpStatus.SERVICE_UNAVAILABLE));
+
+        Optional<ExchangeRateInfo> firstResult =
+                adapter.getExchangeRate("USD");
+
+        Optional<ExchangeRateInfo> secondResult =
+                adapter.getExchangeRate("USD");
+
+        assertTrue(firstResult.isEmpty());
+        assertTrue(secondResult.isEmpty());
+
+        server.verify();
+    }
+
+    @Test
+    void shouldReturnBrlWithoutCallingBrasilApi() {
+        adapter = new ExchangeRateAdapter(
+                builder,
+                "http://localhost",
+                Clock.fixed(
+                        Instant.parse("2026-11-09T12:00:00Z"),
+                        ZoneId.of("America/Sao_Paulo")
+                )
+        );
+
+        Optional<ExchangeRateInfo> result =
+                adapter.getExchangeRate("BRL");
+
+        assertTrue(result.isPresent());
+        assertEquals("BRL", result.get().currency());
+        assertEquals(
+                0,
+                BigDecimal.ONE.compareTo(result.get().rate())
+        );
+        assertEquals(
+                LocalDate.of(2026, 11, 9),
+                result.get().quoteDate()
+        );
+
+        server.verify();
+    }
+
+    @Test
+    void shouldKeepIndependentCacheForEachCurrency() {
+        adapter = new ExchangeRateAdapter(
+                builder,
+                "http://localhost",
+                Clock.fixed(
+                        Instant.parse("2026-11-09T12:00:00Z"),
+                        ZoneId.of("America/Sao_Paulo")
+                )
+        );
+
+        server.expect(requestTo(
+                        "http://localhost/cotacao/USD/2026-11-09"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(
+                        """
+                        {
+                            "moeda": "USD",
+                            "data": "2026-11-09",
+                            "cotacoes": [
+                                {
+                                    "cotacao_venda": 5.4321
+                                }
+                            ]
+                        }
+                        """,
+                        MediaType.APPLICATION_JSON
+                ));
+
+        server.expect(requestTo(
+                        "http://localhost/cotacao/EUR/2026-11-09"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(
+                        """
+                        {
+                            "moeda": "EUR",
+                            "data": "2026-11-09",
+                            "cotacoes": [
+                                {
+                                    "cotacao_venda": 6.1234
+                                }
+                            ]
+                        }
+                        """,
+                        MediaType.APPLICATION_JSON
+                ));
+
+        Optional<ExchangeRateInfo> usdFirst =
+                adapter.getExchangeRate("USD");
+
+        Optional<ExchangeRateInfo> eurFirst =
+                adapter.getExchangeRate("EUR");
+
+        Optional<ExchangeRateInfo> usdSecond =
+                adapter.getExchangeRate("USD");
+
+        Optional<ExchangeRateInfo> eurSecond =
+                adapter.getExchangeRate("EUR");
+
+        assertTrue(usdFirst.isPresent());
+        assertTrue(eurFirst.isPresent());
+
+        assertEquals(usdFirst, usdSecond);
+        assertEquals(eurFirst, eurSecond);
+
+        assertEquals(
+                0,
+                new BigDecimal("5.4321").compareTo(usdFirst.get().rate())
+        );
+
+        assertEquals(
+                0,
+                new BigDecimal("6.1234").compareTo(eurFirst.get().rate())
         );
 
         server.verify();

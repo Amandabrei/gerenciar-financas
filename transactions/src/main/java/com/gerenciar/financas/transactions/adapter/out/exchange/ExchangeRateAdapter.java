@@ -15,10 +15,17 @@ import org.springframework.web.client.RestClientResponseException;
 
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 public class ExchangeRateAdapter implements ExchangeRatePort {
@@ -27,9 +34,15 @@ public class ExchangeRateAdapter implements ExchangeRatePort {
             LoggerFactory.getLogger(ExchangeRateAdapter.class);
 
     private static final int MAX_LOOKBACK_DAYS = 10;
+    private static final Duration NEGATIVE_CACHE_DURATION =
+            Duration.ofMinutes(5);
 
     private final RestClient restClient;
     private final Clock clock;
+    private final ZoneId zoneId;
+
+    private final Map<String, CacheEntry> cache =
+            new ConcurrentHashMap<>();
 
     @Autowired
     public ExchangeRateAdapter(
@@ -42,28 +55,67 @@ public class ExchangeRateAdapter implements ExchangeRatePort {
                 .build();
 
         this.clock = clock;
+        this.zoneId = clock.getZone();
     }
 
     @Override
-    public Optional<ExchangeRateInfo> getExchangeRate(String currency) {
+    public synchronized Optional<ExchangeRateInfo> getExchangeRate(
+            String currency) {
 
         LocalDate today = LocalDate.now(clock);
+        String normalizedCurrency =
+                currency.toUpperCase(Locale.ROOT);
 
-        if ("BRL".equalsIgnoreCase(currency)) {
+        if ("BRL".equals(normalizedCurrency)) {
             return Optional.of(
                     new ExchangeRateInfo("BRL", BigDecimal.ONE, today)
             );
         }
 
+        String cacheKey = normalizedCurrency + ":" + today;
+        Instant now = clock.instant();
+
+        CacheEntry cached = cache.get(cacheKey);
+
+        if (cached != null && cached.expiresAt().isAfter(now)) {
+            log.debug(
+                    "Utilizando cotação em cache para {} em {}.",
+                    normalizedCurrency, today
+            );
+            return cached.result();
+        }
+
+        Optional<ExchangeRateInfo> result =
+                searchLastAvailableQuote(normalizedCurrency, today);
+
+        Duration cacheDuration = result.isPresent()
+                ? durationUntilNextDay()
+                : NEGATIVE_CACHE_DURATION;
+
+        cache.put(
+                cacheKey,
+                new CacheEntry(result, now.plus(cacheDuration))
+        );
+
+        return result;
+    }
+
+    private Optional<ExchangeRateInfo> searchLastAvailableQuote(
+            String currency,
+            LocalDate today) {
+
         LocalDate date = today;
 
         for (int attempt = 0; attempt <= MAX_LOOKBACK_DAYS; attempt++) {
 
+            if (isWeekend(date)) {
+                date = date.minusDays(1);
+                continue;
+            }
+
             try {
                 ExchangeResponse response = restClient.get()
-                        .uri("/cotacao/{currency}/{date}",
-                                currency.toUpperCase(Locale.ROOT),
-                                date)
+                        .uri("/cotacao/{currency}/{date}", currency, date)
                         .retrieve()
                         .body(ExchangeResponse.class);
 
@@ -85,7 +137,7 @@ public class ExchangeRateAdapter implements ExchangeRatePort {
                     }
                 }
 
-                log.warn(
+                log.info(
                         "BrasilAPI não retornou cotação válida para {} em {}.",
                         currency, date
                 );
@@ -137,6 +189,26 @@ public class ExchangeRateAdapter implements ExchangeRatePort {
         );
 
         return Optional.empty();
+    }
+
+    private boolean isWeekend(LocalDate date) {
+        return date.getDayOfWeek() == java.time.DayOfWeek.SATURDAY
+                || date.getDayOfWeek() == java.time.DayOfWeek.SUNDAY;
+    }
+
+    private Duration durationUntilNextDay() {
+        LocalDateTime nextDay =
+                LocalDate.now(clock).plusDays(1).atStartOfDay();
+
+        Instant expiration = nextDay.atZone(zoneId).toInstant();
+
+        return Duration.between(clock.instant(), expiration);
+    }
+
+    private record CacheEntry(
+            Optional<ExchangeRateInfo> result,
+            Instant expiresAt
+    ) {
     }
 
     private record ExchangeResponse(

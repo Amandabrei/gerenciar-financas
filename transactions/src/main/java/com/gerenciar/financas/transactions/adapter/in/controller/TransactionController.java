@@ -317,6 +317,14 @@ public class TransactionController {
 
 
     private TransactionResponse toResponse(Transaction transaction) {
+        boolean usdQuoteAvailable =
+                transaction.getUsdExchangeRate() != null
+                        && transaction.getUsdQuoteDate() != null;
+
+        boolean eurQuoteAvailable =
+                transaction.getEurExchangeRate() != null
+                        && transaction.getEurQuoteDate() != null;
+
         return new TransactionResponse(
                 transaction.getId(),
                 transaction.getOwnerId(),
@@ -330,8 +338,10 @@ public class TransactionController {
                 transaction.getRejectionReason(),
                 transaction.getUsdExchangeRate(),
                 transaction.getUsdQuoteDate(),
+                usdQuoteAvailable,
                 transaction.getEurExchangeRate(),
                 transaction.getEurQuoteDate(),
+                eurQuoteAvailable,
                 transaction.getBalanceBefore(),
                 transaction.getBalanceAfter()
         );

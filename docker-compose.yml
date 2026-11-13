@@ -60,6 +60,8 @@ services:
     build:
       context: ./transactions
       dockerfile: Dockerfile
+      args:
+        JAVA_RUNTIME_IMAGE: ${JAVA_RUNTIME_IMAGE:-eclipse-temurin:25-jre}
     container_name: gerenciar-financas-transactions
     restart: on-failure
     environment:

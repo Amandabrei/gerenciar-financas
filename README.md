@@ -1,6 +1,6 @@
 # API de Gestão Financeira
 
-Projeto desenvolvido para a BECA Bradesco Java Beginner, com mentoria NTT DATA, com o objetivo de disponibilizar uma API de gestão financeira organizada em dois microsserviços independentes, utilizando Java, Spring Boot, arquitetura hexagonal e Docker Compose.
+Projeto desenvolvido para a **BECA Bradesco Java Beginner**, com mentoria NTT DATA, com o objetivo de disponibilizar uma API de gestão financeira composta por dois microsserviços independentes, utilizando Java, Spring Boot, Arquitetura Hexagonal e Docker Compose.
 
 ## 1. Visão geral
 
@@ -9,11 +9,11 @@ A solução é composta por dois microsserviços:
 | Microsserviço | Responsabilidade |
 |---|---|
 | **MS1 — User Service** | Cadastro, consulta, atualização, exclusão e importação de usuários por arquivo CSV. |
-| **MS2 — Transaction API** | Registro e consulta de transações financeiras, validações de saldo e limites, câmbio, análise de despesas e relatórios. |
+| **MS2 — Transaction API** | Registro e consulta de transações financeiras, validação de saldo e limites, consulta de câmbio, análise de despesas e geração de relatórios. |
 
 Cada microsserviço possui sua própria aplicação Spring Boot e seu próprio banco de dados PostgreSQL.
 
-Os serviços são executados em conjunto por meio de um único `docker-compose.yml`, localizado na raiz do repositório.
+Os serviços são executados em conjunto por meio de um único arquivo `docker-compose.yml`, localizado na raiz do repositório.
 
 ## 2. Tecnologias utilizadas
 
@@ -21,19 +21,29 @@ Os serviços são executados em conjunto por meio de um único `docker-compose.y
 - Spring Boot
 - Spring Data JPA
 - Spring Validation
+- Spring Security
 - PostgreSQL
 - Maven
 - Docker e Docker Compose
 - JUnit e Mockito
+- JaCoCo
 - Swagger / OpenAPI
-- MockAPI — integração para consulta de informações financeiras e limites.
-- BrasilAPI — integração para consulta de taxas de câmbio.
+- Flyway
+- MockAPI
+- BrasilAPI
 
 ## 3. Arquitetura
 
 Os microsserviços seguem os princípios da **Arquitetura Hexagonal (Ports and Adapters)**, separando as regras de negócio dos detalhes de infraestrutura.
 
-A organização permite manter o domínio independente de tecnologias externas, facilitando testes, manutenção e evolução.
+A estrutura organiza a aplicação em camadas com responsabilidades distintas:
+
+- **Core / Domain:** modelos e regras de negócio independentes de frameworks.
+- **Application:** casos de uso e orquestração das operações.
+- **Ports:** contratos de entrada e saída da aplicação.
+- **Adapters:** integração com HTTP, banco de dados e serviços externos.
+
+Essa organização favorece a manutenção, a testabilidade e a evolução independente dos microsserviços.
 
 ### MS1 — User Service
 
@@ -42,32 +52,43 @@ Responsável pelo gerenciamento dos usuários.
 Principais funcionalidades:
 
 - Cadastro de usuários.
-- Consulta de usuários por ID.
+- Consulta de usuário por ID.
 - Listagem de usuários.
-- Atualização de usuários.
+- Atualização de dados cadastrais.
 - Exclusão de usuários.
-- Importação de usuários por CSV.
+- Importação de usuários por arquivo CSV.
 - Validação e normalização de e-mail.
-- Tratamento de erros e duplicidade de e-mail.
+- Tratamento de e-mails duplicados.
+- Validação dos dados recebidos.
+- Documentação da API com Swagger / OpenAPI.
 
 ### MS2 — Transaction API
 
-Responsável pelas operações financeiras.
+Responsável pelo gerenciamento das operações financeiras.
 
-Funcionalidades previstas no escopo:
+Principais funcionalidades:
 
 - Registro de depósitos.
 - Registro de saques.
-- Registro de transferências.
+- Registro de transferências entre usuários.
 - Registro de compras.
-- Consulta de transações.
+- Consulta de transação por ID.
+- Listagem de transações por usuário.
+- Filtros por período e tipo de transação.
+- Registro de transações aprovadas e rejeitadas.
+- Justificativa para transações rejeitadas.
 - Consulta de saldo e limites por integração com MockAPI.
+- Validação de saldo disponível e limites de movimentação.
 - Consulta de taxas de câmbio pela BrasilAPI.
+- Registro dos snapshots de saldo anterior e posterior às operações, quando disponíveis.
 - Análise de despesas.
 - Geração de relatório financeiro em CSV.
-- Registro de transações aprovadas e rejeitadas, com justificativa para rejeições.
+- Proteção das rotas por autenticação Basic Auth.
+- Documentação da API com Swagger / OpenAPI.
 
 As transações são processadas de forma síncrona, sem utilização de filas ou mensageria no escopo obrigatório.
+
+Transações rejeitadas permanecem registradas para manter o histórico das tentativas de movimentação. Não existe exclusão de transações financeiras; eventuais correções devem ser realizadas por meio de novas operações.
 
 ## 4. Estrutura do repositório
 
@@ -83,7 +104,9 @@ gerenciar-financas/
 ├── transactions/
 │   ├── src/
 │   ├── pom.xml
-│   └── Dockerfile
+│   ├── Dockerfile
+│   ├── .dockerignore
+│   └── README.md
 │
 ├── docker-compose.yml
 ├── .env.example
@@ -91,7 +114,7 @@ gerenciar-financas/
 └── .gitignore
 ```
 
-Cada microsserviço possui seu próprio `pom.xml`, código-fonte, testes e Dockerfile.
+Cada microsserviço possui seu próprio código-fonte, arquivo Maven, testes e Dockerfile.
 
 O arquivo `docker-compose.yml` centraliza a inicialização das aplicações e dos bancos de dados.
 
@@ -102,7 +125,7 @@ Para executar o projeto, é necessário ter:
 - Git.
 - Docker Desktop ou Rancher Desktop.
 - Docker Compose.
-- Java 25, caso deseje executar os testes ou as aplicações fora dos containers.
+- Java 25, caso deseje executar as aplicações ou os testes fora dos containers.
 
 O Docker deve estar iniciado antes da execução dos comandos.
 
@@ -122,9 +145,9 @@ cd gerenciar-financas
 
 ### 6.2. Configurar as variáveis de ambiente
 
-Na raiz do projeto, existe o arquivo `.env.example`, contendo as variáveis necessárias para configuração dos bancos de dados e das integrações externas.
+O repositório disponibiliza o arquivo `.env.example` com as variáveis necessárias para configuração dos bancos de dados e das integrações externas.
 
-Crie uma cópia com o nome `.env`:
+Crie uma cópia com o nome `.env`.
 
 **Git Bash / Linux / macOS:**
 
@@ -138,25 +161,26 @@ cp .env.example .env
 Copy-Item .env.example .env
 ```
 
-Edite o arquivo `.env` e substitua os valores de exemplo por senhas próprias e seguras.
+Edite o arquivo `.env` e substitua os valores de exemplo por credenciais próprias e seguras.
 
-As variáveis utilizadas são:
+Variáveis utilizadas:
 
 | Variável | Descrição |
 |---|---|
-| `USERS_POSTGRES_DB` | Nome do banco de dados do MS1 (`finances_users`). |
+| `USERS_POSTGRES_DB` | Nome do banco de dados do MS1. |
 | `USERS_POSTGRES_USER` | Usuário do banco de dados do MS1. |
 | `USERS_POSTGRES_PASSWORD` | Senha do banco de dados do MS1. |
-| `TRANSACTIONS_POSTGRES_DB` | Nome do banco de dados do MS2 (`finances_transactions`). |
+| `TRANSACTIONS_POSTGRES_DB` | Nome do banco de dados do MS2. |
 | `TRANSACTIONS_POSTGRES_USER` | Usuário do banco de dados do MS2. |
 | `TRANSACTIONS_POSTGRES_PASSWORD` | Senha do banco de dados do MS2. |
-| `USER_SERVICE_URL` | Endereço do MS1 utilizado pelo MS2. |
-| `ACCOUNT_API_URL` | URL da API MockAPI utilizada para consulta de informações financeiras. |
-| `EXCHANGE_API_URL` | URL da BrasilAPI utilizada para consulta de cotações. |
+| `USER_SERVICE_CLIENT_USERNAME` | Usuário utilizado na comunicação autenticada entre os microsserviços. |
+| `USER_SERVICE_CLIENT_PASSWORD` | Senha utilizada na comunicação autenticada entre os microsserviços. |
+| `ACCOUNT_API_URL` | Endereço da API MockAPI utilizada para consulta de saldo e limites. |
+| `EXCHANGE_API_URL` | Endereço da BrasilAPI utilizada para consulta de cotações. |
 
-As URLs das integrações externas possuem valores padrão definidos na configuração da aplicação. No ambiente Docker Compose, são disponibilizadas por meio das variáveis de ambiente.
+O endereço interno do MS1 utilizado pelo MS2 é configurado pelo Docker Compose como `http://user:8080`.
 
-**Importante:** o arquivo `.env` contém informações locais e não deve ser enviado ao Git. O `.env.example` deve ser mantido no repositório para orientar a configuração de novos ambientes. Não armazene senhas ou credenciais reais no arquivo de exemplo.
+**Importante:** o arquivo `.env` contém informações locais e não deve ser enviado ao Git. Mantenha o `.env.example` atualizado, utilizando apenas valores ilustrativos, sem credenciais reais.
 
 ## 7. Executando o projeto com Docker Compose
 
@@ -166,9 +190,9 @@ Com o Docker iniciado e o arquivo `.env` configurado, execute na raiz do reposit
 docker compose up --build -d
 ```
 
-Esse comando realiza a construção das imagens e inicia os quatro containers:
+Esse comando constrói as imagens e inicia os quatro serviços:
 
-| Container / Serviço | Responsabilidade | Porta local |
+| Serviço | Responsabilidade | Porta local |
 |---|---|---:|
 | `postgres-users` | Banco de dados do MS1 | 5434 |
 | `postgres-transactions` | Banco de dados do MS2 | 5435 |
@@ -205,15 +229,15 @@ docker compose logs -f user transactions
 docker compose down
 ```
 
-Esse comando encerra e remove os containers, mas preserva os volumes dos bancos de dados.
+Esse comando encerra e remove os containers, preservando os volumes dos bancos de dados.
 
-Para remover também os volumes e os dados persistidos, utilize:
+Para remover também os volumes e os dados persistidos:
 
 ```bash
 docker compose down -v
 ```
 
-**Atenção:** o último comando apaga os dados armazenados nos volumes dos bancos.
+**Atenção:** esse último comando apaga os dados armazenados nos volumes dos bancos.
 
 ## 8. Endereços das aplicações
 
@@ -224,9 +248,9 @@ Com os containers em execução:
 | MS1 — User Service | http://localhost:8082 |
 | MS2 — Transaction API | http://localhost:8083 |
 
-### Documentação Swagger / OpenAPI
+### 8.1. Swagger / OpenAPI
 
-A documentação interativa das APIs pode ser acessada pelos endereços:
+A documentação interativa das APIs está disponível em:
 
 - MS1: http://localhost:8082/swagger-ui.html
 - MS2: http://localhost:8083/swagger-ui.html
@@ -236,7 +260,9 @@ Os documentos OpenAPI podem ser consultados em:
 - MS1: http://localhost:8082/v3/api-docs
 - MS2: http://localhost:8083/v3/api-docs
 
-### Verificação de saúde
+O Swagger permite consultar os endpoints, visualizar os parâmetros, verificar os modelos de requisição e resposta e executar operações diretamente pela interface.
+
+### 8.2. Verificação de saúde
 
 O MS2 disponibiliza o endpoint:
 
@@ -248,44 +274,162 @@ Uma resposta com status `UP` indica que a aplicação está em execução.
 
 ## 9. Comunicação entre os microsserviços
 
-O MS2 utiliza o MS1 para validar informações de usuários.
+O MS2 utiliza o MS1 para validar informações dos usuários envolvidos nas operações financeiras.
 
 Quando executados pelo Docker Compose, os serviços se comunicam pela rede interna do Docker, utilizando o nome do serviço como endereço.
 
-A configuração utilizada é:
+Configuração interna:
 
 ```text
 USER_SERVICE_URL=http://user:8080
 ```
 
-O endereço interno é diferente do endereço utilizado pelo computador local.
+Os endereços externos e internos são diferentes:
 
-- Acesso externo ao MS1: `http://localhost:8082`
-- Comunicação interna entre containers: `http://user:8080`
+- Acesso externo ao MS1: `http://localhost:8082`.
+- Comunicação interna entre containers: `http://user:8080`.
 
 Essa configuração permite que o MS2 acesse o MS1 sem depender de `localhost` dentro do container.
 
-## 10. Testes
+A comunicação interna utiliza credenciais configuradas por variáveis de ambiente.
 
-Os testes automatizados são implementados com JUnit e Mockito.
+## 10. Segurança
 
-Para executar os testes do MS1:
+O projeto implementa mecanismos de segurança para proteger as operações financeiras e os dados dos usuários.
+
+Principais cuidados:
+
+- Autenticação Basic Auth nas rotas protegidas do MS2.
+- Comunicação autenticada entre MS1 e MS2.
+- Validação dos dados recebidos pelas APIs.
+- Senhas de usuários armazenadas com codificação segura.
+- Não exposição de senhas em respostas ou logs.
+- Separação de configurações sensíveis em variáveis de ambiente.
+- Não versionamento de arquivos `.env` com credenciais reais.
+
+As rotas públicas e protegidas devem ser consultadas na documentação Swagger de cada microsserviço.
+
+## 11. Integrações externas
+
+### 11.1. MockAPI — saldo e limites
+
+O MS2 utiliza a MockAPI para consultar informações financeiras associadas aos usuários.
+
+A integração disponibiliza informações como:
+
+- Saldo disponível.
+- Limite diário.
+- Limite por transação.
+
+O MS2 utiliza essas informações para validar operações financeiras.
+
+A consulta de saldo é disponibilizada pelo endpoint:
+
+```http
+GET /accounts/{userId}/balance
+```
+
+Exemplo de acesso local:
+
+```http
+GET http://localhost:8083/accounts/{userId}/balance
+```
+
+O identificador informado deve corresponder a um usuário existente no MS1 e a uma conta cadastrada na MockAPI.
+
+**Exemplo ilustrativo de resposta:**
+
+```json
+{
+  "userId": "550e8400-e29b-41d4-a716-446655440000",
+  "balance": 1500.00
+}
+```
+
+A indisponibilidade da MockAPI não deve resultar em aprovação indevida de uma transação.
+
+#### Regras de validação de saldo e limites
+
+As operações de saque, transferência e compra passam pelas validações de saldo e limites.
+
+Depósitos não dependem da validação de saldo disponível para serem registrados.
+
+O MS2 considera as transações aprovadas e persistidas em seu próprio banco para calcular os gastos diários.
+
+São contabilizados como gastos:
+
+- Saques (`WITHDRAWAL`).
+- Transferências (`TRANSFER`).
+- Compras (`PURCHASE`).
+
+Depósitos e transações rejeitadas não são contabilizados como gastos.
+
+O campo `dailySpent` disponibilizado pela MockAPI não é utilizado como fonte de cálculo do gasto diário, evitando duplicidade com o histórico de transações mantido pelo MS2.
+
+#### Origem do saldo
+
+O saldo retornado pela consulta representa o valor informado pela MockAPI.
+
+O MS2 não realiza conciliação automática entre o saldo da MockAPI e as transações persistidas em seu próprio banco.
+
+Essa distinção é importante: o saldo externo e o histórico de movimentações do MS2 possuem fontes de referência diferentes.
+
+#### Snapshots de saldo
+
+Quando as informações necessárias estão disponíveis, o MS2 registra snapshots do saldo anterior e posterior à operação.
+
+Esses valores permitem acompanhar o contexto financeiro associado à transação registrada.
+
+Quando não é possível determinar o saldo com segurança, os snapshots podem permanecer nulos.
+
+### 11.2. BrasilAPI — cotação de moedas
+
+O MS2 utiliza a BrasilAPI para consultar taxas de câmbio e disponibilizar valores convertidos em moedas como USD e EUR.
+
+A resposta apresenta a taxa de conversão e a respectiva data de referência (`quoteDate`).
+
+#### Tratamento de datas sem cotação
+
+Quando não existe cotação disponível para a data consultada, como pode ocorrer em finais de semana e feriados, o MS2 realiza novas consultas retrocedendo um dia por tentativa.
+
+A busca é limitada a dez dias.
+
+A integração trata respostas inválidas e falhas de comunicação sem impedir a consulta de transações já registradas.
+
+## 12. Análise de despesas e relatório CSV
+
+O MS2 disponibiliza recursos para acompanhar as despesas dos usuários.
+
+### 12.1. Análise de despesas
+
+A análise considera somente transações de saída aprovadas:
+
+- Saques.
+- Transferências.
+- Compras.
+
+Transações rejeitadas e depósitos não entram no cálculo das despesas.
+
+Quando não é informado um período, a análise utiliza o mês atual como referência.
+
+### 12.2. Relatório financeiro
+
+O MS2 disponibiliza a geração de relatório financeiro em CSV para o usuário autenticado.
+
+O arquivo é preparado para facilitar a abertura e análise em ferramentas de planilhas, como Microsoft Excel.
+
+A documentação Swagger apresenta os parâmetros e detalhes da operação.
+
+## 13. Testes automatizados e cobertura
+
+Os microsserviços possuem testes automatizados utilizando JUnit e Mockito.
+
+Os testes verificam regras de negócio, serviços, validações, persistência e tratamento de exceções.
+
+### 13.1. Executar os testes do MS1
 
 ```bash
 cd users
-./mvnw test
-```
-
-No Windows, também é possível utilizar:
-
-```cmd
-mvnw.cmd test
-```
-
-Para executar os testes do MS2:
-
-```bash
-cd transactions
 ./mvnw test
 ```
 
@@ -295,117 +439,65 @@ No Windows:
 mvnw.cmd test
 ```
 
-Os testes verificam regras de negócio, serviços, persistência, validações e tratamento de exceções.
+### 13.2. Executar os testes do MS2
 
-## 11. Integrações externas
-
-### MockAPI
-
-Utilizada pelo MS2 para consultar informações financeiras associadas aos usuários, incluindo saldo disponível e limites de movimentação.
-
-A indisponibilidade dessa integração não deve resultar em aprovação indevida de uma transação.
-
-#### Consulta de saldo
-
-O MS2 disponibiliza um endpoint para consultar o saldo atual de um usuário por meio da integração com a MockAPI.
-
-**Endpoint:**
-
-```http
-GET /accounts/{userId}/balance
+```bash
+cd transactions
+./mvnw clean verify
 ```
 
-**Exemplo de acesso local:**
+No Windows:
 
-```http
-GET http://localhost:8083/accounts/550e8400-e29b-41d4-a716-446655440000/balance
+```cmd
+mvnw.cmd clean verify
 ```
 
-O identificador utilizado na requisição deve corresponder ao ID de um usuário existente no MS1 e com conta cadastrada na MockAPI.
+O comando `verify` executa os testes e gera o relatório de cobertura configurado pelo JaCoCo.
 
-**Exemplo de resposta — 200 OK:**
+Após a execução, o relatório HTML pode ser consultado em:
 
-```json
-{
-  "userId": "550e8400-e29b-41d4-a716-446655440000",
-  "balance": 1500.00
-}
+```text
+transactions/target/site/jacoco/index.html
 ```
 
-**Possíveis respostas:**
+O relatório apresenta métricas de cobertura do código, permitindo identificar quais partes da aplicação foram exercitadas pelos testes automatizados.
 
-| Status HTTP | Descrição |
-|---|---|
-| 200 OK | Saldo consultado com sucesso. |
-| 404 Not Found | Usuário ou conta financeira não encontrada, ou saldo não disponível para o usuário informado. |
-| 503 Service Unavailable | API Mock indisponível no momento. |
+## 14. Decisões técnicas e regras de negócio
 
-A consulta utiliza o identificador do usuário para localizar sua conta na MockAPI. O saldo retornado representa exclusivamente o valor disponibilizado pela integração externa.
+### Processamento síncrono
 
-**Importante — origem e atualização do saldo:**
+As operações financeiras são processadas de forma síncrona. Não são utilizadas filas ou mensageria no escopo obrigatório.
 
-O MS2 não recalcula nem atualiza automaticamente o saldo da MockAPI com base nas transações registradas em seu próprio banco de dados.
+### Separação dos bancos de dados
 
-Portanto, o valor retornado representa o saldo informado pela fonte externa, e não necessariamente o saldo resultante de todas as movimentações aprovadas no MS2.
+O MS1 e o MS2 possuem bancos PostgreSQL independentes.
 
-Essa separação é uma característica da implementação atual. A integração de saldo não realiza conciliação automática entre o saldo da MockAPI e as transações persistidas no MS2.
+O MS2 consulta informações de usuários por meio da API do MS1, sem compartilhar tabelas ou acessar diretamente o banco de dados do outro serviço.
 
-### BrasilAPI
+### Histórico de transações
 
-Utilizada para consultar taxas de câmbio, permitindo apresentar valores convertidos em moedas como USD e EUR, com suas respectivas taxas e datas de referência.
+As transações aprovadas e rejeitadas são persistidas.
 
-A indisponibilidade da API externa não deve impedir a consulta de transações já registradas.
+Não existe exclusão de transações financeiras. Correções devem ser representadas por novas operações, preservando o histórico.
 
-## 12. Segurança
+### Indisponibilidade de serviços externos
 
-O projeto considera os seguintes cuidados:
+A indisponibilidade da MockAPI não deve permitir aprovações sem validação de saldo e limites.
 
-- Autenticação Basic Auth nas rotas protegidas do MS2.
-- Validação dos dados recebidos pelas APIs.
-- Senhas de usuários armazenadas com codificação segura.
-- Não exposição de senhas em respostas ou logs.
-- Separação das configurações sensíveis em variáveis de ambiente.
-- Não versionamento de arquivos `.env` com credenciais reais.
+A indisponibilidade da BrasilAPI não deve impedir a consulta de transações já registradas.
 
-### 12.1. Regras de negócio e decisões técnicas
+### Evolução do banco de dados
 
-#### Controle do limite diário
+O MS2 utiliza migrations para controlar alterações estruturais do banco de dados.
 
-O MS2 utiliza as transações aprovadas e registradas no próprio serviço como fonte de referência para calcular os gastos diários do usuário.
+As migrations permitem registrar a evolução do esquema de persistência, incluindo os campos utilizados para armazenar os snapshots de saldo das transações.
 
-A MockAPI fornece o saldo disponível, o limite diário e o limite por transação. Entretanto, o campo `dailySpent` retornado pela integração não é utilizado no cálculo, evitando a duplicidade de valores entre fontes diferentes.
+## 15. Considerações finais
 
-Para verificar o limite diário, o MS2 considera as transações aprovadas do dia atual dos seguintes tipos:
+O projeto foi desenvolvido em um único repositório Git, mantendo os dois microsserviços independentes e com responsabilidades bem definidas.
 
-- Saques (`WITHDRAWAL`);
-- Transferências (`TRANSFER`);
-- Compras (`PURCHASE`).
+A arquitetura hexagonal favorece a separação das regras de negócio, enquanto o Docker Compose simplifica a inicialização e a comunicação entre as aplicações.
 
-Depósitos e transações rejeitadas não são contabilizados como gastos.
+A solução reúne funcionalidades de gerenciamento de usuários, operações financeiras, validações de saldo e limites, consulta de câmbio, análise de despesas e geração de relatórios.
 
-#### Diferença entre saldo e limite diário
-
-Embora ambos sejam utilizados nas validações financeiras, possuem fontes de referência distintas:
-
-- **Saldo disponível:** obtido diretamente da MockAPI, sem recálculo automático pelas transações do MS2.
-- **Gastos do limite diário:** calculados pelo MS2 a partir das transações aprovadas e persistidas em seu próprio banco de dados.
-
-Dessa forma, o cálculo do limite diário considera as movimentações registradas no MS2, enquanto a consulta de saldo reflete o valor informado pela MockAPI.
-
-#### Consulta de cotações
-
-A integração com a BrasilAPI consulta a cotação da moeda solicitada para a data atual.
-
-Quando não existe cotação disponível para a data consultada, como pode ocorrer em finais de semana e feriados, o MS2 realiza novas consultas retrocedendo um dia por tentativa, até encontrar uma cotação válida ou atingir o limite de dez dias de busca.
-
-A resposta informa a taxa encontrada e a respectiva data de referência (`quoteDate`).
-
-Falhas de comunicação ou indisponibilidade da API externa não devem impedir a consulta de transações já registradas.
-
-## 13. Considerações finais
-
-O projeto foi organizado em um único repositório Git, mantendo os dois microsserviços independentes e com responsabilidades separadas.
-
-A execução centralizada pelo Docker Compose facilita a configuração do ambiente, a comunicação entre as aplicações e a reprodução do ambiente de desenvolvimento.
-
-**Repositório:** [Amandabrei/gerenciar-financas](https://github.com/Amandabrei/gerenciar-financas)
+**Repositório:** https://github.com/Amandabrei/gerenciar-financas

@@ -315,6 +315,7 @@ public class TransactionController {
         return ResponseEntity.created(location).body(toResponse(transaction));
     }
 
+
     private TransactionResponse toResponse(Transaction transaction) {
         return new TransactionResponse(
                 transaction.getId(),
@@ -330,7 +331,9 @@ public class TransactionController {
                 transaction.getUsdExchangeRate(),
                 transaction.getUsdQuoteDate(),
                 transaction.getEurExchangeRate(),
-                transaction.getEurQuoteDate()
+                transaction.getEurQuoteDate(),
+                transaction.getBalanceBefore(),
+                transaction.getBalanceAfter()
         );
     }
 }

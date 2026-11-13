@@ -20,7 +20,6 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -43,7 +42,7 @@ public class CreateTransactionService implements CreateTransactionUseCase {
             UserValidationPort userValidationPort,
             AccountFinancialPort accountFinancialPort,
             ExchangeRatePort exchangeRatePort,
-            Clock clock){
+            Clock clock) {
 
         this.transactionRepositoryPort = transactionRepositoryPort;
         this.userValidationPort = userValidationPort;
@@ -94,7 +93,8 @@ public class CreateTransactionService implements CreateTransactionUseCase {
         Transaction transaction = createTransaction(
                 ownerId, null, TransactionType.DEPOSIT,
                 amount, description, "DEPOSIT",
-                TransactionStatus.APPROVED, null
+                TransactionStatus.APPROVED, null,
+                previousBalance, newBalance
         );
 
         return updateSingleBalanceAndSave(
@@ -118,10 +118,15 @@ public class CreateTransactionService implements CreateTransactionUseCase {
                 validateOutgoingTransaction(ownerId, amount);
 
         if (validation.rejectionReason() != null) {
+            BigDecimal knownBalance = validation.account() != null
+                    ? validation.account().balance()
+                    : null;
+
             return saveRejectedTransaction(
                     ownerId, null, TransactionType.WITHDRAWAL,
                     amount, description, "WITHDRAWAL",
-                    validation.rejectionReason()
+                    validation.rejectionReason(),
+                    knownBalance, knownBalance
             );
         }
 
@@ -131,7 +136,8 @@ public class CreateTransactionService implements CreateTransactionUseCase {
         Transaction transaction = createTransaction(
                 ownerId, null, TransactionType.WITHDRAWAL,
                 amount, description, "WITHDRAWAL",
-                TransactionStatus.APPROVED, null
+                TransactionStatus.APPROVED, null,
+                previousBalance, newBalance
         );
 
         return updateSingleBalanceAndSave(
@@ -163,12 +169,19 @@ public class CreateTransactionService implements CreateTransactionUseCase {
                 validateOutgoingTransaction(ownerId, amount);
 
         if (validation.rejectionReason() != null) {
+            BigDecimal knownBalance = validation.account() != null
+                    ? validation.account().balance()
+                    : null;
+
             return saveRejectedTransaction(
                     ownerId, destinationUserId, TransactionType.TRANSFER,
                     amount, description, "TRANSFER",
-                    validation.rejectionReason()
+                    validation.rejectionReason(),
+                    knownBalance, knownBalance
             );
         }
+
+        BigDecimal sourcePreviousBalance = validation.account().balance();
 
         AccountFinancialInfo destinationAccount =
                 getAccountSafely(destinationUserId);
@@ -177,11 +190,11 @@ public class CreateTransactionService implements CreateTransactionUseCase {
             return saveRejectedTransaction(
                     ownerId, destinationUserId, TransactionType.TRANSFER,
                     amount, description, "TRANSFER",
-                    "Conta financeira do destinatário não encontrada. Transferência não aprovada."
+                    "Conta financeira do destinatário não encontrada. Transferência não aprovada.",
+                    sourcePreviousBalance, sourcePreviousBalance
             );
         }
 
-        BigDecimal sourcePreviousBalance = validation.account().balance();
         BigDecimal sourceNewBalance = sourcePreviousBalance.subtract(amount);
 
         BigDecimal destinationPreviousBalance = destinationAccount.balance();
@@ -190,7 +203,8 @@ public class CreateTransactionService implements CreateTransactionUseCase {
         Transaction transaction = createTransaction(
                 ownerId, destinationUserId, TransactionType.TRANSFER,
                 amount, description, "TRANSFER",
-                TransactionStatus.APPROVED, null
+                TransactionStatus.APPROVED, null,
+                sourcePreviousBalance, sourceNewBalance
         );
 
         return updateTransferBalancesAndSave(
@@ -223,10 +237,15 @@ public class CreateTransactionService implements CreateTransactionUseCase {
                 validateOutgoingTransaction(ownerId, amount);
 
         if (validation.rejectionReason() != null) {
+            BigDecimal knownBalance = validation.account() != null
+                    ? validation.account().balance()
+                    : null;
+
             return saveRejectedTransaction(
                     ownerId, null, TransactionType.PURCHASE,
                     amount, description, category,
-                    validation.rejectionReason()
+                    validation.rejectionReason(),
+                    knownBalance, knownBalance
             );
         }
 
@@ -236,7 +255,8 @@ public class CreateTransactionService implements CreateTransactionUseCase {
         Transaction transaction = createTransaction(
                 ownerId, null, TransactionType.PURCHASE,
                 amount, description, category,
-                TransactionStatus.APPROVED, null
+                TransactionStatus.APPROVED, null,
+                previousBalance, newBalance
         );
 
         return updateSingleBalanceAndSave(
@@ -257,6 +277,7 @@ public class CreateTransactionService implements CreateTransactionUseCase {
 
         try {
             accountFinancialPort.updateBalance(userId, newBalance);
+
         } catch (RuntimeException exception) {
             log.error(
                     "Falha ao atualizar saldo do usuário {}.",
@@ -264,7 +285,10 @@ public class CreateTransactionService implements CreateTransactionUseCase {
                     exception
             );
 
-            compensateBalance(userId, previousBalance);
+            boolean compensated =
+                    compensateBalance(userId, previousBalance);
+
+            BigDecimal knownBalance = compensated ? previousBalance : null;
 
             return saveRejectedTransaction(
                     transaction.getOwnerId(),
@@ -273,12 +297,15 @@ public class CreateTransactionService implements CreateTransactionUseCase {
                     transaction.getAmount(),
                     transaction.getDescription(),
                     transaction.getCategory(),
-                    rejectionReason
+                    rejectionReason,
+                    knownBalance,
+                    knownBalance
             );
         }
 
         try {
             return transactionRepositoryPort.save(transaction);
+
         } catch (RuntimeException exception) {
             log.error(
                     "Falha ao salvar transação. Tentando restaurar saldo do usuário {}.",
@@ -305,12 +332,14 @@ public class CreateTransactionService implements CreateTransactionUseCase {
 
         try {
             sourceUpdateAttempted = true;
+
             accountFinancialPort.updateBalance(
                     sourceUserId,
                     sourceNewBalance
             );
 
             destinationUpdateAttempted = true;
+
             accountFinancialPort.updateBalance(
                     destinationUserId,
                     destinationNewBalance
@@ -324,19 +353,23 @@ public class CreateTransactionService implements CreateTransactionUseCase {
                     exception
             );
 
-            if (destinationUpdateAttempted) {
-                compensateBalance(
-                        destinationUserId,
-                        destinationPreviousBalance
-                );
-            }
+            boolean destinationCompensated = !destinationUpdateAttempted
+                    || compensateBalance(
+                    destinationUserId,
+                    destinationPreviousBalance
+            );
 
-            if (sourceUpdateAttempted) {
-                compensateBalance(
-                        sourceUserId,
-                        sourcePreviousBalance
-                );
-            }
+            boolean sourceCompensated = !sourceUpdateAttempted
+                    || compensateBalance(
+                    sourceUserId,
+                    sourcePreviousBalance
+            );
+
+            boolean fullyCompensated =
+                    sourceCompensated && destinationCompensated;
+
+            BigDecimal knownBalance =
+                    fullyCompensated ? sourcePreviousBalance : null;
 
             return saveRejectedTransaction(
                     transaction.getOwnerId(),
@@ -345,12 +378,15 @@ public class CreateTransactionService implements CreateTransactionUseCase {
                     transaction.getAmount(),
                     transaction.getDescription(),
                     transaction.getCategory(),
-                    "Não foi possível atualizar os saldos da transferência. Operação não aprovada."
+                    "Não foi possível atualizar os saldos da transferência. Operação não aprovada.",
+                    knownBalance,
+                    knownBalance
             );
         }
 
         try {
             return transactionRepositoryPort.save(transaction);
+
         } catch (RuntimeException exception) {
             log.error(
                     "Falha ao salvar transferência. Tentando restaurar os saldos.",
@@ -371,12 +407,14 @@ public class CreateTransactionService implements CreateTransactionUseCase {
         }
     }
 
-    private void compensateBalance(
+    private boolean compensateBalance(
             UUID userId,
             BigDecimal previousBalance) {
 
         try {
             accountFinancialPort.updateBalance(userId, previousBalance);
+            return true;
+
         } catch (RuntimeException exception) {
             log.error(
                     "Não foi possível compensar a atualização do saldo do usuário {}. "
@@ -384,6 +422,8 @@ public class CreateTransactionService implements CreateTransactionUseCase {
                     userId,
                     exception
             );
+
+            return false;
         }
     }
 
@@ -396,6 +436,30 @@ public class CreateTransactionService implements CreateTransactionUseCase {
             String category,
             String rejectionReason) {
 
+        return saveRejectedTransaction(
+                ownerId,
+                destinationUserId,
+                type,
+                amount,
+                description,
+                category,
+                rejectionReason,
+                null,
+                null
+        );
+    }
+
+    private Transaction saveRejectedTransaction(
+            UUID ownerId,
+            UUID destinationUserId,
+            TransactionType type,
+            BigDecimal amount,
+            String description,
+            String category,
+            String rejectionReason,
+            BigDecimal balanceBefore,
+            BigDecimal balanceAfter) {
+
         Transaction transaction = createTransaction(
                 ownerId,
                 destinationUserId,
@@ -404,7 +468,9 @@ public class CreateTransactionService implements CreateTransactionUseCase {
                 description,
                 category,
                 TransactionStatus.REJECTED,
-                rejectionReason
+                rejectionReason,
+                balanceBefore,
+                balanceAfter
         );
 
         return transactionRepositoryPort.save(transaction);
@@ -423,10 +489,7 @@ public class CreateTransactionService implements CreateTransactionUseCase {
                 || financialInfo.dailyLimit() == null
                 || financialInfo.transactionLimit() == null) {
 
-            return new ValidationResult(
-                    null,
-                    ACCOUNT_UNAVAILABLE
-            );
+            return new ValidationResult(null, ACCOUNT_UNAVAILABLE);
         }
 
         if (amount.compareTo(financialInfo.transactionLimit()) > 0) {
@@ -462,6 +525,7 @@ public class CreateTransactionService implements CreateTransactionUseCase {
     private AccountFinancialInfo getAccountSafely(UUID userId) {
         try {
             return accountFinancialPort.getAccountFinancialInfo(userId);
+
         } catch (RuntimeException exception) {
             log.error(
                     "Não foi possível consultar a conta financeira do usuário {}.",
@@ -497,6 +561,32 @@ public class CreateTransactionService implements CreateTransactionUseCase {
             TransactionStatus status,
             String rejectionReason) {
 
+        return createTransaction(
+                ownerId,
+                destinationUserId,
+                type,
+                amount,
+                description,
+                category,
+                status,
+                rejectionReason,
+                null,
+                null
+        );
+    }
+
+    private Transaction createTransaction(
+            UUID ownerId,
+            UUID destinationUserId,
+            TransactionType type,
+            BigDecimal amount,
+            String description,
+            String category,
+            TransactionStatus status,
+            String rejectionReason,
+            BigDecimal balanceBefore,
+            BigDecimal balanceAfter) {
+
         Optional<ExchangeRateInfo> usdRate =
                 getExchangeRateSafely("USD");
 
@@ -518,7 +608,9 @@ public class CreateTransactionService implements CreateTransactionUseCase {
                 usdRate.map(ExchangeRateInfo::rate).orElse(null),
                 usdRate.map(ExchangeRateInfo::quoteDate).orElse(null),
                 eurRate.map(ExchangeRateInfo::rate).orElse(null),
-                eurRate.map(ExchangeRateInfo::quoteDate).orElse(null)
+                eurRate.map(ExchangeRateInfo::quoteDate).orElse(null),
+                balanceBefore,
+                balanceAfter
         );
     }
 

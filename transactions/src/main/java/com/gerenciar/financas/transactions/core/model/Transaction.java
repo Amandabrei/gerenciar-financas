@@ -25,7 +25,13 @@ public class Transaction {
     private final LocalDate usdQuoteDate;
     private final BigDecimal eurExchangeRate;
     private final LocalDate eurQuoteDate;
+    private final BigDecimal balanceBefore;
+    private final BigDecimal balanceAfter;
 
+    /**
+     * Construtor de compatibilidade.
+     * Mantém as chamadas existentes com 15 parâmetros.
+     */
     public Transaction(
             UUID id,
             UUID ownerId,
@@ -43,42 +49,105 @@ public class Transaction {
             BigDecimal eurExchangeRate,
             LocalDate eurQuoteDate
     ) {
+        this(
+                id,
+                ownerId,
+                destinationUserId,
+                type,
+                amount,
+                createdAt,
+                description,
+                category,
+                status,
+                rejectionReason,
+                originalTransactionId,
+                usdExchangeRate,
+                usdQuoteDate,
+                eurExchangeRate,
+                eurQuoteDate,
+                null,
+                null
+        );
+    }
+
+    /**
+     * Construtor completo, incluindo os snapshots de saldo.
+     */
+    public Transaction(
+            UUID id,
+            UUID ownerId,
+            UUID destinationUserId,
+            TransactionType type,
+            BigDecimal amount,
+            LocalDateTime createdAt,
+            String description,
+            String category,
+            TransactionStatus status,
+            String rejectionReason,
+            UUID originalTransactionId,
+            BigDecimal usdExchangeRate,
+            LocalDate usdQuoteDate,
+            BigDecimal eurExchangeRate,
+            LocalDate eurQuoteDate,
+            BigDecimal balanceBefore,
+            BigDecimal balanceAfter
+    ) {
         if (ownerId == null) {
-            throw new IllegalArgumentException("O usuário proprietário é obrigatório.");
+            throw new IllegalArgumentException(
+                    "O usuário proprietário é obrigatório."
+            );
         }
 
         if (type == null) {
-            throw new IllegalArgumentException("O tipo da transação é obrigatório.");
+            throw new IllegalArgumentException(
+                    "O tipo da transação é obrigatório."
+            );
         }
 
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("O valor deve ser maior que zero.");
+            throw new IllegalArgumentException(
+                    "O valor deve ser maior que zero."
+            );
         }
 
         if (createdAt == null) {
-            throw new IllegalArgumentException("A data da transação é obrigatória.");
+            throw new IllegalArgumentException(
+                    "A data da transação é obrigatória."
+            );
         }
 
-        if (type == TransactionType.TRANSFER && destinationUserId == null) {
-            throw new IllegalArgumentException("A transferência precisa de um usuário de destino.");
+        if (type == TransactionType.TRANSFER
+                && destinationUserId == null) {
+            throw new IllegalArgumentException(
+                    "A transferência precisa de um usuário de destino."
+            );
         }
 
-        if (type != TransactionType.TRANSFER && destinationUserId != null) {
-            throw new IllegalArgumentException("Somente transferências podem ter usuário de destino.");
+        if (type != TransactionType.TRANSFER
+                && destinationUserId != null) {
+            throw new IllegalArgumentException(
+                    "Somente transferências podem ter usuário de destino."
+            );
         }
 
-        if (type == TransactionType.PURCHASE &&
-                (category == null || category.isBlank())) {
-            throw new IllegalArgumentException("A compra precisa de uma categoria.");
+        if (type == TransactionType.PURCHASE
+                && (category == null || category.isBlank())) {
+            throw new IllegalArgumentException(
+                    "A compra precisa de uma categoria."
+            );
         }
 
         if (status == null) {
-            throw new IllegalArgumentException("O status da transação é obrigatório.");
+            throw new IllegalArgumentException(
+                    "O status da transação é obrigatório."
+            );
         }
 
-        if (status == TransactionStatus.REJECTED &&
-                (rejectionReason == null || rejectionReason.isBlank())) {
-            throw new IllegalArgumentException("Uma transação rejeitada precisa informar o motivo.");
+        if (status == TransactionStatus.REJECTED
+                && (rejectionReason == null || rejectionReason.isBlank())) {
+            throw new IllegalArgumentException(
+                    "Uma transação rejeitada precisa informar o motivo."
+            );
         }
 
         this.id = id != null ? id : UUID.randomUUID();
@@ -96,6 +165,8 @@ public class Transaction {
         this.usdQuoteDate = usdQuoteDate;
         this.eurExchangeRate = eurExchangeRate;
         this.eurQuoteDate = eurQuoteDate;
+        this.balanceBefore = balanceBefore;
+        this.balanceAfter = balanceAfter;
     }
 
     public UUID getId() {
@@ -156,5 +227,13 @@ public class Transaction {
 
     public LocalDate getEurQuoteDate() {
         return eurQuoteDate;
+    }
+
+    public BigDecimal getBalanceBefore() {
+        return balanceBefore;
+    }
+
+    public BigDecimal getBalanceAfter() {
+        return balanceAfter;
     }
 }

@@ -22,6 +22,8 @@ public record TransactionResponse(
         BigDecimal usdExchangeRate,
         LocalDate usdQuoteDate,
         BigDecimal eurExchangeRate,
-        LocalDate eurQuoteDate
+        LocalDate eurQuoteDate,
+        BigDecimal balanceBefore,
+        BigDecimal balanceAfter
 ) {
 }

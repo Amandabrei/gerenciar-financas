@@ -56,6 +56,12 @@ public class TransactionEntity {
 
     private UUID originalTransactionId;
 
+    @Column(precision = 19, scale = 2)
+    private BigDecimal balanceBefore;
+
+    @Column(precision = 19, scale = 2)
+    private BigDecimal balanceAfter;
+
     protected TransactionEntity() {
         // Construtor exigido pelo JPA
     }
@@ -75,7 +81,9 @@ public class TransactionEntity {
             BigDecimal usdExchangeRate,
             LocalDate usdQuoteDate,
             BigDecimal eurExchangeRate,
-            LocalDate eurQuoteDate
+            LocalDate eurQuoteDate,
+            BigDecimal balanceBefore,
+            BigDecimal balanceAfter
     ) {
         this.id = id;
         this.ownerId = ownerId;
@@ -92,6 +100,8 @@ public class TransactionEntity {
         this.usdQuoteDate = usdQuoteDate;
         this.eurExchangeRate = eurExchangeRate;
         this.eurQuoteDate = eurQuoteDate;
+        this.balanceBefore = balanceBefore;
+        this.balanceAfter = balanceAfter;
     }
 
     public UUID getId() {
@@ -152,5 +162,13 @@ public class TransactionEntity {
 
     public LocalDate getEurQuoteDate() {
         return eurQuoteDate;
+    }
+
+    public BigDecimal getBalanceBefore() {
+        return balanceBefore;
+    }
+
+    public BigDecimal getBalanceAfter() {
+        return balanceAfter;
     }
 }

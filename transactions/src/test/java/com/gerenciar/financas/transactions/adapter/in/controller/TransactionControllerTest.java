@@ -172,7 +172,13 @@ class TransactionControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(transactionId.toString()))
                 .andExpect(jsonPath("$.type").value("DEPOSIT"))
-                .andExpect(jsonPath("$.status").value("APPROVED"));
+                .andExpect(jsonPath("$.status").value("APPROVED"))
+                .andExpect(jsonPath("$.usdQuoteAvailable").value(false))
+                .andExpect(jsonPath("$.eurQuoteAvailable").value(false))
+                .andExpect(jsonPath("$.usdExchangeRate").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$.usdQuoteDate").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$.eurExchangeRate").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$.eurQuoteDate").value(org.hamcrest.Matchers.nullValue()));
     }
 
     @Test
@@ -652,5 +658,43 @@ class TransactionControllerTest {
                 .andExpect(jsonPath("$.status").value(404))
                 .andExpect(jsonPath("$.message")
                         .value("Endpoint não encontrado."));
+    }
+
+    @Test
+    void deveRetornarIndicadoresDeCotacaoQuandoTaxasEstiveremDisponiveis() throws Exception {
+        LocalDate quoteDate = LocalDate.of(2026, 11, 12);
+
+        Transaction transactionWithQuotes = new Transaction(
+                transactionId,
+                ownerId,
+                null,
+                TransactionType.DEPOSIT,
+                new BigDecimal("100.00"),
+                LocalDateTime.of(2026, 11, 13, 10, 0),
+                "Depósito de teste",
+                null,
+                TransactionStatus.APPROVED,
+                null,
+                null,
+                new BigDecimal("5.40"),
+                quoteDate,
+                new BigDecimal("6.20"),
+                quoteDate,
+                new BigDecimal("500.00"),
+                new BigDecimal("600.00")
+        );
+
+        given(findTransactionUseCase.findById(transactionId))
+                .willReturn(Optional.of(transactionWithQuotes));
+
+        mockMvc.perform(get("/transactions/{id}", transactionId)
+                        .with(authenticatedAs(ownerId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.usdQuoteAvailable").value(true))
+                .andExpect(jsonPath("$.usdExchangeRate").value(5.40))
+                .andExpect(jsonPath("$.usdQuoteDate").value("2026-11-12"))
+                .andExpect(jsonPath("$.eurQuoteAvailable").value(true))
+                .andExpect(jsonPath("$.eurExchangeRate").value(6.20))
+                .andExpect(jsonPath("$.eurQuoteDate").value("2026-11-12"));
     }
 }

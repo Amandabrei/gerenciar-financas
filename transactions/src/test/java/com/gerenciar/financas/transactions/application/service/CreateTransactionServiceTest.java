@@ -82,6 +82,8 @@ class CreateTransactionServiceTest {
         assertEquals(TransactionType.DEPOSIT, result.getType());
         assertEquals(TransactionStatus.APPROVED, result.getStatus());
         assertEquals(amount, result.getAmount());
+        assertEquals(new BigDecimal("1000.00"), result.getBalanceBefore());
+        assertEquals(new BigDecimal("1500.00"), result.getBalanceAfter());
 
         verify(accountFinancialPort).getAccountFinancialInfo(ownerId);
         verify(accountFinancialPort).updateBalance(
@@ -136,6 +138,8 @@ class CreateTransactionServiceTest {
         assertEquals(TransactionType.WITHDRAWAL, result.getType());
         assertEquals(TransactionStatus.APPROVED, result.getStatus());
         assertEquals(amount, result.getAmount());
+        assertEquals(new BigDecimal("1000.00"), result.getBalanceBefore());
+        assertEquals(new BigDecimal("900.00"), result.getBalanceAfter());
 
         verify(accountFinancialPort).getAccountFinancialInfo(ownerId);
         verify(accountFinancialPort).updateBalance(
@@ -169,6 +173,8 @@ class CreateTransactionServiceTest {
         assertNotNull(result);
         assertEquals(TransactionStatus.REJECTED, result.getStatus());
         assertEquals("Saldo insuficiente.", result.getRejectionReason());
+        assertEquals(new BigDecimal("50.00"), result.getBalanceBefore());
+        assertEquals(new BigDecimal("50.00"), result.getBalanceAfter());
 
         verify(accountFinancialPort).getAccountFinancialInfo(ownerId);
         verify(accountFinancialPort, never())
@@ -199,6 +205,8 @@ class CreateTransactionServiceTest {
                 "Dados financeiros indisponíveis. Operação não aprovada.",
                 result.getRejectionReason()
         );
+        assertNull(result.getBalanceBefore());
+        assertNull(result.getBalanceAfter());
 
         verify(accountFinancialPort).getAccountFinancialInfo(ownerId);
         verify(accountFinancialPort, never())
@@ -243,6 +251,8 @@ class CreateTransactionServiceTest {
         assertEquals(TransactionStatus.APPROVED, result.getStatus());
         assertEquals(ownerId, result.getOwnerId());
         assertEquals(destinationUserId, result.getDestinationUserId());
+        assertEquals(new BigDecimal("1000.00"), result.getBalanceBefore());
+        assertEquals(new BigDecimal("900.00"), result.getBalanceAfter());
 
         verify(accountFinancialPort).updateBalance(
                 ownerId, new BigDecimal("900.00")
@@ -325,6 +335,8 @@ class CreateTransactionServiceTest {
         assertEquals(TransactionStatus.APPROVED, result.getStatus());
         assertEquals("ALIMENTACAO", result.getCategory());
         assertEquals(amount, result.getAmount());
+        assertEquals(new BigDecimal("1000.00"), result.getBalanceBefore());
+        assertEquals(new BigDecimal("850.00"), result.getBalanceAfter());
 
         verify(accountFinancialPort).updateBalance(
                 ownerId, new BigDecimal("850.00")
@@ -380,6 +392,8 @@ class CreateTransactionServiceTest {
                 "O valor ultrapassa o limite por transação.",
                 result.getRejectionReason()
         );
+        assertEquals(new BigDecimal("1000.00"), result.getBalanceBefore());
+        assertEquals(new BigDecimal("1000.00"), result.getBalanceAfter());
 
         verify(accountFinancialPort, never())
                 .updateBalance(any(UUID.class), any(BigDecimal.class));
@@ -440,6 +454,8 @@ class CreateTransactionServiceTest {
 
         assertEquals(TransactionStatus.REJECTED, result.getStatus());
         assertEquals("Saldo insuficiente.", result.getRejectionReason());
+        assertEquals(new BigDecimal("300.00"), result.getBalanceBefore());
+        assertEquals(new BigDecimal("300.00"), result.getBalanceAfter());
 
         verify(accountFinancialPort, never())
                 .updateBalance(any(UUID.class), any(BigDecimal.class));
@@ -796,6 +812,8 @@ class CreateTransactionServiceTest {
                 "Não foi possível atualizar o saldo do saque. Operação não aprovada.",
                 result.getRejectionReason()
         );
+        assertEquals(previousBalance, result.getBalanceBefore());
+        assertEquals(previousBalance, result.getBalanceAfter());
 
         verify(accountFinancialPort).updateBalance(ownerId, newBalance);
         verify(accountFinancialPort).updateBalance(ownerId, previousBalance);
@@ -890,6 +908,8 @@ class CreateTransactionServiceTest {
                 "Não foi possível atualizar os saldos da transferência. Operação não aprovada.",
                 result.getRejectionReason()
         );
+        assertEquals(sourcePreviousBalance, result.getBalanceBefore());
+        assertEquals(sourcePreviousBalance, result.getBalanceAfter());
 
         verify(accountFinancialPort).updateBalance(
                 sourceUserId, sourceNewBalance
@@ -1035,4 +1055,49 @@ class CreateTransactionServiceTest {
         verify(transactionRepositoryPort).save(any(Transaction.class));
     }
 
+    @Test
+    void shouldKeepBalanceSnapshotsNullWhenCompensationFails() {
+        UUID ownerId = UUID.randomUUID();
+
+        BigDecimal previousBalance = new BigDecimal("1000.00");
+        BigDecimal newBalance = new BigDecimal("900.00");
+
+        when(userValidationPort.userExists(ownerId)).thenReturn(true);
+
+        when(accountFinancialPort.getAccountFinancialInfo(ownerId))
+                .thenReturn(new AccountFinancialInfo(
+                        previousBalance,
+                        new BigDecimal("2000.00"),
+                        new BigDecimal("500.00"),
+                        new BigDecimal("100.00")
+                ));
+
+        doThrow(new RuntimeException("Falha na atualização"))
+                .when(accountFinancialPort)
+                .updateBalance(ownerId, newBalance);
+
+        doThrow(new RuntimeException("Falha na compensação"))
+                .when(accountFinancialPort)
+                .updateBalance(ownerId, previousBalance);
+
+        when(transactionRepositoryPort.save(any(Transaction.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        Transaction result = service.createWithdrawal(
+                ownerId,
+                new BigDecimal("100.00"),
+                "Saque com falha na compensação"
+        );
+
+        assertNotNull(result);
+        assertEquals(TransactionStatus.REJECTED, result.getStatus());
+
+        assertNull(result.getBalanceBefore());
+        assertNull(result.getBalanceAfter());
+
+        verify(accountFinancialPort).updateBalance(ownerId, newBalance);
+        verify(accountFinancialPort).updateBalance(ownerId, previousBalance);
+
+        verify(transactionRepositoryPort).save(any(Transaction.class));
+    }
 }

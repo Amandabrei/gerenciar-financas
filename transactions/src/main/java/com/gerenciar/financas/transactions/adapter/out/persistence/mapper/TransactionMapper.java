@@ -23,7 +23,9 @@ public class TransactionMapper {
                 transaction.getUsdExchangeRate(),
                 transaction.getUsdQuoteDate(),
                 transaction.getEurExchangeRate(),
-                transaction.getEurQuoteDate()
+                transaction.getEurQuoteDate(),
+                transaction.getBalanceBefore(),
+                transaction.getBalanceAfter()
         );
     }
 
@@ -43,7 +45,9 @@ public class TransactionMapper {
                 entity.getUsdExchangeRate(),
                 entity.getUsdQuoteDate(),
                 entity.getEurExchangeRate(),
-                entity.getEurQuoteDate()
+                entity.getEurQuoteDate(),
+                entity.getBalanceBefore(),
+                entity.getBalanceAfter()
         );
     }
 }

@@ -1,0 +1,92 @@
+.login-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: #f5f7fb;
+}
+
+.login-card {
+    width: 100%;
+    max-width: 460px;
+    padding: 42px;
+    border: 1px solid #e9edf4;
+    border-radius: 18px !important;
+}
+
+.login-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 38px;
+    color: #172033;
+}
+
+.login-brand-icon {
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    border-radius: 12px;
+    color: #fff;
+    background: #2563eb;
+}
+
+.login-brand-icon svg {
+    font-size: 26px;
+}
+
+.login-title {
+    margin-bottom: 8px !important;
+    color: #172033;
+}
+
+.login-subtitle {
+    margin-bottom: 30px !important;
+}
+
+.login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.login-label {
+    margin-top: 8px !important;
+    color: #344054;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+}
+
+.login-form .MuiOutlinedInput-root {
+    border-radius: 9px;
+    background: #fff;
+}
+
+.login-button {
+    margin-top: 18px !important;
+    padding: 12px !important;
+    border-radius: 9px !important;
+    background: #2563eb !important;
+    font-weight: 700 !important;
+    text-transform: none !important;
+}
+
+.login-register {
+    margin-top: 28px !important;
+    text-align: center;
+    font-size: 14px !important;
+    color: #667085;
+}
+
+.login-register a {
+    color: #2563eb;
+    font-weight: 700;
+}
+
+@media (max-width: 480px) {
+    .login-card {
+        padding: 28px 22px;
+    }
+}
